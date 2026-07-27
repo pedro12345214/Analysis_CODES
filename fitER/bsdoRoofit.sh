@@ -4,8 +4,8 @@ DOANALYSISPbPb_BINNED_Y_BS=0
 DOANALYSISPbPb_BINNED_MULT_BS=0
 
 #Data and MC Samples
-Data_Bs="/eos/user/c/ctorresc/BmesonsHIN/PreXGBFiles/Data_2024ppRef_Bs.root"
-MC_Bs="/eos/user/c/ctorresc/BmesonsHIN/PreXGBFiles/MC_2024ppRef_Bs.root"
+Data_Bs="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntphi_ppRef_DATA.root"
+MC_Bs="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntphi_ppRef_MC.root"
 #Data and MC Samples
 
 ## NEW CUTS ? here 

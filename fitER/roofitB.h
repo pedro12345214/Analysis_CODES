@@ -134,6 +134,18 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooChebychev bkg_4th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3));
 	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 0.1);
 	RooExponential bkg(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, lambda);
+	RooRealVar p_lin(Form("p_lin%d_%s", _count, pdf.Data()), "Linear slope", 0.0, -5.0, 5.0);
+	RooPolynomial bkg_lin(Form("bkg_lin%d_%s", _count, pdf.Data()), "Linear Background", *mass, RooArgList(p_lin), 1);
+
+	RooRealVar bkg_gauss1_mean(Form("bkg_gauss1_mean%d_%s", _count, pdf.Data()), "bkg_gauss1_mean", 5.25, 5.2, 5.4);
+	RooRealVar bkg_gauss1_sigma(Form("bkg_gauss1_sigma%d_%s", _count, pdf.Data()), "bkg_gauss1_sigma", 0.043, 0.001, 0.1);
+	RooGaussian bkg_gauss1(Form("bkg_gauss1%d_%s", _count, pdf.Data()), "bkg_gauss1", *mass, bkg_gauss1_mean, bkg_gauss1_sigma);
+    RooRealVar nbkg_gauss1(Form("nbkg_gauss1%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
+
+	RooRealVar bkg_gauss2_mean(Form("bkg_gauss2_mean%d_%s", _count, pdf.Data()), "bkg_gauss2_mean", 5.44, 5.3, 5.5);
+	RooRealVar bkg_gauss2_sigma(Form("bkg_gauss2_sigma%d_%s", _count, pdf.Data()), "bkg_gauss2_sigma", 0.098, 0.001, 0.2);
+	RooGaussian bkg_gauss2(Form("bkg_gauss2%d_%s", _count, pdf.Data()), "bkg_gauss2", *mass, bkg_gauss2_mean, bkg_gauss2_sigma);
+	RooRealVar nbkg_gauss2(Form("nbkg_gauss2%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
 
 	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 6000, 250, 1e4);
 	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.01, 0.001, 0.1);
@@ -146,18 +158,20 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntphi") {
-		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
-		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
+		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg, bkg_gauss1, bkg_gauss2), RooArgList(nsig,nbkg, nbkg_gauss1, nbkg_gauss2));
+		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntKstar") {
 		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntKp") {
 		if ((variation == "" && pdf == "")) model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg, *erfc), RooArgList(nsig, nbkg, nbkg_part_r));
 		if (pdf == "mass_range") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "linear") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(bkg_lin, *sig, *erfc), RooArgList(nbkg, nsig, nbkg_part_r));
 		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(bkg_2nd, *sig, *erfc), RooArgList(nbkg, nsig, nbkg_part_r));
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(bkg_3rd, *sig, *erfc), RooArgList(nbkg, nsig, nbkg_part_r));
 		if (variation == "signal" && pdf == "1gauss") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(bkg, sig1, *erfc), RooArgList(nbkg, nsig, nbkg_part_r));

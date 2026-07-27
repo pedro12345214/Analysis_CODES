@@ -16,7 +16,7 @@ void read_samples(RooWorkspace& w, vector<TString> label, TString fName, TString
 std::pair<int, std::vector<double>> defineBinning(const TString& var, const TString& tree, int full);
 
 // PDF VARIATION FOR SYST STUDIES
-int syst_study=0;
+int syst_study=1;
 
 // PROFILE LIKELIHOOD SIGNIFICANCE + INCLUSIVE SCAN
 int use_profile_likelihood = 0;
@@ -63,7 +63,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	int fitMassBins = nbinsmasshisto;
 	if (TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") fitMassBins = nbinsmasshisto/2;
 	mass = new RooRealVar("Bmass", "Bmass", minhisto, maxhisto);
-	mass->setRange("m_rangeB", 5.2 , 5.5);        //set a range to be used if pdf = mass_rangeB
+	mass->setRange("m_rangeB", 5.2 , 5.8);        //set a range to be used if pdf = mass_rangeB
 	mass->setRange("all", minhisto, maxhisto);
 	RooRealVar* pt    = new RooRealVar("Bpt","Bpt",0,300);
 	RooRealVar* y     = new RooRealVar("By","By",-2.4, 2.4);
@@ -252,8 +252,82 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		double max_signal=0.; 
 		double max_back=0.; 
 
+		if(syst_study==1 && FULL==1){
+			//BACKGROUND MODEL SYSTEMATIC STUDY Full Samples
+			for(int j=0; j < static_cast<int>(background.size()); j++)
+			{
+				RooFitResult* f_back = fit(SYSTEM, "background", background[j].code.c_str(), TREE, c, cMC, data, mc, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
+				RooRealVar* chi2_data_norm_back = ws->var(Form("chi2_data_norm%d_%s", _count, background[j].code.c_str()));
+				RooRealVar* fitYield_back = static_cast<RooRealVar*>(f_back->floatParsFinal().at(f_back->floatParsFinal().index(Form("nsig%d_%s",_count,background[j].code.c_str()))));
+				chi2_vec_back[j][i] = (chi2_data_norm_back ? chi2_data_norm_back->getVal() : -1.0);
+				chi_square->SetText(0.68,0.55,Form("#chi^{2}/ndf = %.2f ",chi2_vec_back[j][i]));
+				chi_square->Draw();
+				rapidityLabel->Draw();
+				varBIN->Draw();
+				N_signal->SetTitle(Form("Y_{s} = %.0f #pm %.0f", fitYield_back->getVal(), fitYield_back->getError()));
+				N_signal->Draw();
+				variationLabel->SetTitle(Form("(%s)", background[j].label.c_str()));
+				variationLabel->Draw();
+				mesonName->Draw();
+				c->Update();
+
+				if(VAR == "By"){c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".pdf");}
+				else { c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".pdf");}
+
+				back_variation.push_back(fitYield_back->getVal());
+				double back_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_back->getVal())/yield_vec[i])*100.) : 0.;
+				back_unc.push_back(back_rel_unc);
+				if(back_rel_unc > max_back) max_back = back_rel_unc;
+			}
+			general_unc.push_back(max_back);
+			background_syst.push_back(back_variation);
+
+			//SIGNAL MODEL SYSTEMATIC STUDY Full Samples
+			for(int j=0; j< static_cast<int>(signal.size()); j++)
+			{
+				RooFitResult* f_signal = fit(SYSTEM, "signal", signal[j].code.c_str(), TREE, c, cMC, data, mc, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
+				RooRealVar* chi2_data_norm_sig = ws->var(Form("chi2_data_norm%d_%s", _count, signal[j].code.c_str()));
+				RooRealVar* fitYield_signal = static_cast<RooRealVar*>(f_signal->floatParsFinal().at(f_signal->floatParsFinal().index(Form("nsig%d_%s",_count,signal[j].code.c_str()))));
+					chi2_vec_sig[j][i] = (chi2_data_norm_sig ? chi2_data_norm_sig->getVal() : -1.0);
+					chi_square->SetText(0.68, 0.55, Form("#chi^{2}/ndf = %.2f ", chi2_vec_sig[j][i]));
+					chi_square->Draw();
+					rapidityLabel->Draw();
+					varBIN->Draw();
+					N_signal->SetTitle(Form("Y_{s} = %.0f #pm %.0f", fitYield_signal->getVal(), fitYield_signal->getError()));
+					N_signal->Draw();
+					variationLabel->SetTitle(Form("(%s)", signal[j].label.c_str()));
+					variationLabel->Draw();
+					mesonName->Draw();
+					c->Update();
+				
+				if (signal[j].code != "fixed") {
+					if(VAR == "By"){ cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i], (float)_varBINS[i+1],signal[j].code.c_str())+TREE+".pdf");} 
+					else { cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(), (int)_varBINS[i], (int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+				}
+				if(VAR == "By"){ c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+				else{ c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+				
+				signal_variation.push_back(fitYield_signal->getVal());
+				double signal_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_signal->getVal())/yield_vec[i])*100.) : 0.;
+				signal_unc.push_back(signal_rel_unc);
+				if(signal_rel_unc > max_signal) max_signal = signal_rel_unc;
+			}
+
+			general_unc.push_back(max_signal);
+			signal_syst.push_back(signal_variation);
+			general_unc.push_back(sqrt(max_back*max_back+max_signal*max_signal));
+			stat_error.push_back(stat_un);
+			back_syst_rel_values.push_back(back_unc);
+			sig_syst_rel_values.push_back(signal_unc);			
+			general_syst.push_back(general_unc);
+			yield_vec_systerr_low[i] = general_unc[2] / 100 * yield_vec[i];
+			yield_vec_systerr_high[i] = general_unc[2] / 100 * yield_vec[i];
+		}
+
+	
+
 		if(syst_study==1 && FULL==0){
-			//BACKGROUND MODEL SYSTEMATIC STUDY
+			//BACKGROUND MODEL SYSTEMATIC STUDY Reduced Samples
 			for(int j=0; j < static_cast<int>(background.size()); j++)
 			{
 				RooFitResult* f_back = fit(SYSTEM, "background", background[j].code.c_str(), TREE, c, cMC, ith_DATA_bin, ith_MC_bin, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
