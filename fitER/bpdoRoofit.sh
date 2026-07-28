@@ -42,4 +42,25 @@ root -b -q "roofitB.C++(\"ntKp\",\
                       \"$syst\")"
 fi
 
+if [ $DOANALYSISPbPb_BINNED_Y_Bp  -eq 1  ]; then
+root -b -q "roofitB.C++(\"ntKp\",\
+                      0, \
+                      \"$Data_Bp\", \
+                      \"$MC_Bp\", \
+                      \"By\", \
+                      \"$CUTs\", \
+                      \"$syst\")"
+fi
+
+if [ $DOANALYSISPbPb_BINNED_MULT_Bp  -eq 1  ]; then
+root -b -q "roofitB.C++(\"ntKp\",\
+                      0, \
+                      \"$Data_Bp\", \
+                      \"$MC_Bp\", \
+                      \"nSelectedChargedTracks\", \
+                      \"$CUTs\", \
+                      \"$syst\")"
+fi
+
+
 rm roofitB_C.d roofitB_C_ACLiC_dict_rdict.pcm roofitB_C.so

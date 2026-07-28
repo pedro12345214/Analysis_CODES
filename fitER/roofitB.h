@@ -1,5 +1,6 @@
 #pragma once
 
+#include "TPaveText.h"
 #include "aux/uti.h"
 #include "RooWorkspace.h"
 #include "TString.h"
@@ -102,11 +103,27 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	dsMC->plotOn(frameMC, Name(Form("dsMC%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
 	modelMC->plotOn(frameMC, Name(Form("sigMC%d_%s", _count, pdf.Data())), Range("signal"), NormRange("signal"), Normalization(nsigMC->getVal(), RooAbsReal::NumEvent), DrawOption("LF"), FillStyle(3002), FillColor(signalColor), LineStyle(7), LineColor(signalColor), LineWidth(1));
 	modelMC->plotOn(frameMC, Name(Form("modelMCcurve%d_%s", _count, pdf.Data())), DrawOption("L"), LineWidth(0));
-	modelMC->paramOn(frameMC, Layout(0.18, 0.48, 0.78), Format("NEU", AutoPrecision(2)));
+	modelMC->paramOn(frameMC, Layout(0.18, 0.48, 0.82), Format("NEU", AutoPrecision(2)));
+
+    TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", modelMC->GetName())));
+    if (paramBoxMC) {
+      paramBoxMC->SetTextSize(0.022);
+      paramBoxMC->SetTextFont(42);
+      paramBoxMC->SetFillStyle(0);
+      paramBoxMC->SetBorderSize(0);
+
+	  // Reduce vertical gaps: make the box shorter
+      paramBoxMC->SetY1NDC(0.72);
+      paramBoxMC->SetY2NDC(0.82);
+
+    }
+
 	frameMC->getAttFill()->SetFillStyle(0);
 	frameMC->getAttLine()->SetLineWidth(0);
+	frameMC->SetMinimum(0.0);
+    frameMC->SetMaximum(frameMC->GetMaximum() * 1.35);
 	frameMC->Draw();
-	TLatex* mesonNameMC = new TLatex(0.2, 0.85, FitParticleLabel(tree, true));
+	TLatex* mesonNameMC = new TLatex(0.2, 0.88, FitParticleLabel(tree, true));
 	setupLABELS(mesonNameMC, 0.060, true);
 	cMC->RedrawAxis();
 
@@ -147,9 +164,16 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooGaussian bkg_gauss2(Form("bkg_gauss2%d_%s", _count, pdf.Data()), "bkg_gauss2", *mass, bkg_gauss2_mean, bkg_gauss2_sigma);
 	RooRealVar nbkg_gauss2(Form("nbkg_gauss2%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
 
-	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 6000, 250, 1e4);
-	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.01, 0.001, 0.1);
-	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.15, 5.1, 5.2);
+	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 9000, 6000, 10000);
+	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.001, 0.1);
+	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
+
+	// Fixing the parameters of the background PDFs based on the results of the fit to the inclusive data sample
+    //RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.054);
+	//m_nonprompt_scale->setConstant(true);
+	//RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.1397);
+    //m_nonprompt_shift->setConstant(true);
+
 	RooGenericPdf* erfc = new RooGenericPdf(Form("erfc%d", _count), "0.5*TMath::Erfc((@0-@2)/@1)", RooArgList(*mass, *m_nonprompt_scale, *m_nonprompt_shift));
 
 	RooAddPdf* model = nullptr;
@@ -158,13 +182,13 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntphi") {
-		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg, bkg_gauss1, bkg_gauss2), RooArgList(nsig,nbkg, nbkg_gauss1, nbkg_gauss2));
-		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
+		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig,nbkg));
+		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntKstar") {
-		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
-		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
+		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
+		//if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 	}
@@ -215,6 +239,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	frame->GetYaxis()->SetLabelFont(42);
 	frame->GetXaxis()->SetLabelSize(0);
 	frame->GetYaxis()->SetLabelSize(0.035);
+
 	TPad* p1 = new TPad("p1", "p1", 0., 0.22, 1., 1);
 	p1->SetBorderMode(1);
 	p1->SetFrameBorderMode(0);
@@ -244,9 +269,22 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	if (!std::isfinite(chi2Ndf) || chi2Ndf < 0) chi2Ndf = -1.0;
 	RooRealVar chi2Var(Form("chi2_data_norm%d_%s", _count, pdf.Data()), "", chi2Ndf);
 	w.import(chi2Var);
-	model->paramOn(frame, Layout(0.18, 0.48, 0.78), Format("NEU", AutoPrecision(2)));
+	model->paramOn(frame, Layout(0.18, 0.48, 0.80), Format("NEU", AutoPrecision(2)));
+
+    TPaveText* paramBox =
+    dynamic_cast<TPaveText*>(frame->findObject(Form("%s_paramBox", model->GetName())));
+
+	if (paramBox) {
+    	paramBox->SetTextSize(0.022);
+    	paramBox->SetTextFont(42);
+    	paramBox->SetFillStyle(0);
+    	paramBox->SetBorderSize(0);
+	}
+
 	frame->getAttFill()->SetFillStyle(0);
 	frame->getAttLine()->SetLineWidth(0);
+	frame->SetMinimum(0.0);
+	frame->SetMaximum(frame->GetMaximum() * 1.45);
 	frame->Draw();
 
 	TLegend* leg = new TLegend(0.67, 0.60, 0.91, 0.90, NULL, "brNDC");

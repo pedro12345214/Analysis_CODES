@@ -16,7 +16,7 @@ void read_samples(RooWorkspace& w, vector<TString> label, TString fName, TString
 std::pair<int, std::vector<double>> defineBinning(const TString& var, const TString& tree, int full);
 
 // PDF VARIATION FOR SYST STUDIES
-int syst_study=1;
+int syst_study=0;
 
 // PROFILE LIKELIHOOD SIGNIFICANCE + INCLUSIVE SCAN
 int use_profile_likelihood = 0;
@@ -34,8 +34,14 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	gSystem->mkdir(GRAPH_DIR.Data(), true); 
 	gSystem->mkdir(ROOT_BASE.Data(), true);
 	gSystem->mkdir(SYST_ROOT_DIR.Data(), true);
-	gSystem->mkdir(Form("%s", OUTPLOTF.Data()),true); 
-	
+	gSystem->mkdir(Form("%s", OUTPLOTF.Data()),true);
+
+	gSystem->mkdir(Form("%s/png", TABLE_DIR.Data()), true);
+	gSystem->mkdir(Form("%s/png", GRAPH_DIR.Data()), true);
+	gSystem->mkdir(Form("%s/png", ROOT_BASE.Data()), true);
+	gSystem->mkdir(Form("%s/png", SYST_ROOT_DIR.Data()), true);
+	gSystem->mkdir(Form("%s/png", OUTPLOTF.Data()), true);
+
 	// BINING DEFINITION
 	int _nBins;
 	std::vector<double> _varBINS;
@@ -119,7 +125,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	TH1D* hPtMC = new TH1D("hPtMC","",_nBins,_varBINS.data());
 
 	//BIN ANALYSIS START
-	for(int i=0;i<_nBins;i++){
+	for(int i=0;i<_nBins;i++){	
 		_count++;
 		TCanvas* c  = new TCanvas(Form("c%d"  ,_count),"",700,700);
 		TCanvas* cMC= new TCanvas(Form("cMC%d",_count),"",700,700);
@@ -238,9 +244,13 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		if(VAR == "By"){
 			c->SaveAs(  Form("%s/data_%s_%s_%0.1f_%0.1f_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i],(float)_varBINS[i+1])+TREE+".pdf");
 			cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_"  ,OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i],(float)_varBINS[i+1])+TREE+".pdf");
+			c->SaveAs(  Form("%s/data_%s_%s_%i_%i_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".png");
+			cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_"  ,OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".png");
 		}else{
 			c->SaveAs(  Form("%s/data_%s_%s_%i_%i_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".pdf");
 			cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_"  ,OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".pdf");
+			c->SaveAs(  Form("%s/png/data_%s_%s_%i_%i_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".png");
+			cMC->SaveAs(Form("%s/png/mc_%s_%s_%i_%i_"  ,OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1])+TREE+".png");
 		}
 		// Save
 
@@ -271,8 +281,14 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 				mesonName->Draw();
 				c->Update();
 
-				if(VAR == "By"){c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".pdf");}
-				else { c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".pdf");}
+				if(VAR == "By"){
+					c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".png");
+				}
+				else { 
+					c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".pdf");
+  					c->SaveAs(Form("%s/png/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".png");
+				}
 
 				back_variation.push_back(fitYield_back->getVal());
 				double back_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_back->getVal())/yield_vec[i])*100.) : 0.;
@@ -301,11 +317,22 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 					c->Update();
 				
 				if (signal[j].code != "fixed") {
-					if(VAR == "By"){ cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i], (float)_varBINS[i+1],signal[j].code.c_str())+TREE+".pdf");} 
-					else { cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(), (int)_varBINS[i], (int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+					if (VAR == "By") {
+						cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)", VAR.Data()), (float)_varBINS[i], (float)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".pdf");
+						cMC->SaveAs(Form("%s/png/mc_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)", VAR.Data()), (float)_varBINS[i], (float)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".png");
+					} else {
+						cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(), (int)_varBINS[i], (int)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".pdf");
+						cMC->SaveAs(Form("%s/png/mc_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(), (int)_varBINS[i], (int)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".png");
+					}
 				}
-				if(VAR == "By"){ c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
-				else{ c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+				if (VAR == "By") {
+					c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)", VAR.Data()), (float)_varBINS[i], (float)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)", VAR.Data()), (float)_varBINS[i], (float)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".png");
+				} else {
+					c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(), (int)_varBINS[i], (int)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(), (int)_varBINS[i], (int)_varBINS[i + 1], signal[j].code.c_str()) + TREE + ".png");
+				}
+
 				
 				signal_variation.push_back(fitYield_signal->getVal());
 				double signal_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_signal->getVal())/yield_vec[i])*100.) : 0.;
@@ -345,8 +372,14 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 				mesonName->Draw();
 				c->Update();
 
-				if(VAR == "By"){c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".pdf");}
-				else { c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".pdf");}
+				if(VAR == "By"){
+					c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%0.1f_%0.1f_%s_", OUTPLOTF.Data(), SYSTEM.Data(), Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],background[j].code.c_str())+TREE+ ".png");
+				}
+				else { 
+					c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%i_%i_%s_", OUTPLOTF.Data(), SYSTEM.Data(), VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],background[j].code.c_str())+TREE+".png");
+				}
 
 				back_variation.push_back(fitYield_back->getVal());
 				double back_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_back->getVal())/yield_vec[i])*100.) : 0.;
@@ -375,11 +408,23 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 					c->Update();
 				
 				if (signal[j].code != "fixed") {
-					if(VAR == "By"){ cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i], (float)_varBINS[i+1],signal[j].code.c_str())+TREE+".pdf");} 
-					else { cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(), (int)_varBINS[i], (int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+					if(VAR == "By"){ 
+						cMC->SaveAs(Form("%s/mc_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i], (float)_varBINS[i+1],signal[j].code.c_str())+TREE+".pdf");
+						cMC->SaveAs(Form("%s/png/mc_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()), (float)_varBINS[i], (float)_varBINS[i+1],signal[j].code.c_str())+TREE+".png");
+					} 
+					else { 
+						cMC->SaveAs(Form("%s/mc_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(), (int)_varBINS[i], (int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");
+						cMC->SaveAs(Form("%s/png/mc_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(), (int)_varBINS[i], (int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".png");
+					}
 				}
-				if(VAR == "By"){ c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
-				else{ c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");}
+				if(VAR == "By"){ 
+					c->SaveAs(Form("%s/data_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%0.1f_%0.1f_%s_",OUTPLOTF.Data(),SYSTEM.Data(),Form("abs(%s)",VAR.Data()),(float)_varBINS[i],(float)_varBINS[i+1],signal[j].code.c_str() )+TREE+".png");
+				}
+				else{ 
+					c->SaveAs(Form("%s/data_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".pdf");
+					c->SaveAs(Form("%s/png/data_%s_%s_%i_%i_%s_",OUTPLOTF.Data(),SYSTEM.Data(),VAR.Data(),(int)_varBINS[i],(int)_varBINS[i+1],signal[j].code.c_str() )+TREE+".png");
+				}
 				
 				signal_variation.push_back(fitYield_signal->getVal());
 				double signal_rel_unc = (yield_vec[i] != 0.) ? abs(((yield_vec[i]-fitYield_signal->getVal())/yield_vec[i])*100.) : 0.;
@@ -519,7 +564,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		}
 		legback->Draw();
 		c_back->SaveAs(Form("%s/background_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
-
+		c_back->SaveAs(Form("%s/png/background_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
+		
 		TCanvas* c_sig= new TCanvas("c_sig","",700,700);
 		TLegend *legsig = new TLegend(0.75,0.8,0.89,0.89,NULL,"brNDC");
 		legsig->SetBorderSize(0);
@@ -565,6 +611,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		}
 		legsig->Draw();
 		c_sig->SaveAs(Form("%s/signal_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
+		c_sig->SaveAs(Form("%s/png/signal_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
 		TCanvas *c_sig_back= new TCanvas("c_sig_back","",700,700);
 		double y_max_combined = (y_max_back > y_max_sig) ? y_max_back : y_max_sig;
@@ -586,6 +633,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		m_back_sig->Draw("AE1");
 		legsigback->Draw();
 		c_sig_back->SaveAs(Form("%s/background_signal_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
+		c_sig_back->SaveAs(Form("%s/png/background_signal_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
 		TCanvas* c_gen= new TCanvas("c_gen","",700,700);
 		TLegend *legen = new TLegend(0.8,0.77,0.89,0.89,NULL,"brNDC");
@@ -641,6 +689,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		}
 		legen->Draw();
 		c_gen->SaveAs(Form("%s/general_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
+		c_gen->SaveAs(Form("%s/png/general_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
 	}
 
@@ -702,6 +751,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		leg_d->Draw();
 		const char* pathc =Form("%s/raw_yield_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data());
 		c_diff.SaveAs(pathc);
+		const char* pathc_png =Form("%s/png/raw_yield_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data());
+		c_diff.SaveAs(pathc_png);
 		//Differential plot part ends
 
 		//Scale part starts
@@ -734,6 +785,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		mg_par->Draw("AP");
 		const char* pathc_par =Form("%s/scale_variation_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
 		c_par.SaveAs(pathc_par);
+		const char* pathc_par_png =Form("%s/png/scale_variation_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
+		c_par.SaveAs(pathc_par_png);
 		//Scale part ends
 
 		//Resolution plot part
@@ -764,6 +817,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		mg_resol->Draw("AP");
 		const char* pathc_resol =Form("%s/resolution_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
 		c_resol.SaveAs(pathc_resol);
+		const char* pathc_resol_png =Form("%s/png/resolution_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
+		c_resol.SaveAs(pathc_resol_png);
 		//Resolution plot part ends
 
 		TGraphAsymmErrors* gr_chi2 = new TGraphAsymmErrors(_nBins,var_mean_av,chi2_vec,hori_av_low,hori_av_high,nullptr,nullptr);
@@ -810,6 +865,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
 			const char* pathc_chi2_sigsum =Form("%s/chi2_%s_%s_signal_summary.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
 			c_chi2_sigsum.SaveAs(pathc_chi2_sigsum);
+			const char* pathc_chi2_sigsum_png =Form("%s/png/chi2_%s_%s_signal_summary.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
+			c_chi2_sigsum.SaveAs(pathc_chi2_sigsum_png);
 			//chi2 plot part (sigsum) ends
 
 			//chi2 plot part (backsum) starts
@@ -850,10 +907,13 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
 			const char* pathc_chi2_backsum =Form("%s/chi2_%s_%s_background_summary.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
 			c_chi2_backsum.SaveAs(pathc_chi2_backsum);
+			const char* pathc_chi2_backsum_png =Form("%s/png/chi2_%s_%s_background_summary.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()); 
+			c_chi2_backsum.SaveAs(pathc_chi2_backsum_png);
 			//chi2 plot part (backsum) ends
 		}
 		//Chi2 plot part ends
 	}
+
 }
 
 

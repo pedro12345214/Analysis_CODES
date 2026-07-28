@@ -447,8 +447,8 @@ struct SystVariationConfig {
 
 inline std::vector<SystVariationConfig> GetBackgroundSystematicModels(const TString& tree)
 {
-	if (tree == "ntphi")  {//3rd-order Chebyshev  // Exponential and two single Gaussian
-		return {{"2nd", "2nd-order Chebyshev"}, {"3th", "3th-order Chebyshev"}, {"4th", "4th-order Chebyshev"}};
+	if (tree == "ntphi")  {//3rd-order Chebyshev  
+		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}};
 	}
 	if (tree == "ntKstar"){//3rd-order Chebyshev
 		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}};

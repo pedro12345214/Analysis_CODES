@@ -1,0 +1,15 @@
+# Generated results
+results/
+
+# Or ignore only plot files
+*.pdf
+*.png
+*.jpg
+*.jpeg
+
+# ROOT outputs, if generated
+*.root
+
+# Temporary files
+*.log
+*.tmp
