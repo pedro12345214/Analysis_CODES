@@ -1,7 +1,7 @@
-DOANALYSISPbPb_FULL_Bp=1
+DOANALYSISPbPb_FULL_Bp=0
 DOANALYSISPbPb_BINNED_PT_Bp=0
 DOANALYSISPbPb_BINNED_Y_Bp=0
-DOANALYSISPbPb_BINNED_MULT_Bp=0
+DOANALYSISPbPb_BINNED_MULT_Bp=1
 
 #Data and MC Samples
 Data_Bp="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKp_ppRef_DATA.root"

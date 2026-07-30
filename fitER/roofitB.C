@@ -75,6 +75,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	RooRealVar* y     = new RooRealVar("By","By",-2.4, 2.4);
 	RooRealVar* nSelectedChargedTracks = new RooRealVar("nSelectedChargedTracks","nSelectedChargedTracks",0,2000000000);
 	RooRealVar* CentBin = new RooRealVar("CentBin","CentBin",0,100);
+	RooRealVar* Bgen = new RooRealVar("Bgen","Bgen",0,2000000000);
 
 	RooWorkspace* ws = new RooWorkspace("ws");
 	ws->import(*mass);
@@ -82,13 +83,16 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	ws->import(*pt);
 	ws->import(*nSelectedChargedTracks);
 	ws->import(*CentBin);
+	ws->import(*Bgen);
 
 	//DATA and MC SAMPLES
 	TString dataTree = TREE;
 	if (TREE == "ntmix_PSI2S" || TREE == "ntmix_X3872") dataTree = "ntmix";
-	vector<TString>   ANA_vars = {"Bpt", "By", "CentBin", "nSelectedChargedTracks"};
-	read_samples(*ws, ANA_vars, INPUTDATA.Data(), dataTree.Data(), "data", SYSTEM.Data(), SELcuts);
-	read_samples(*ws, ANA_vars, INPUTMC.Data()  , TREE.Data(), "mc", SYSTEM.Data(), SELcuts);
+	vector<TString>   ANA_vars_data = {"Bpt", "By", "CentBin", "nSelectedChargedTracks"};
+    vector<TString> ANA_vars_mc = {"Bpt", "By", "CentBin", "nSelectedChargedTracks", "Bgen"};
+
+	read_samples(*ws, ANA_vars_data, INPUTDATA.Data(), dataTree.Data(), "data", SYSTEM.Data(), SELcuts);
+	read_samples(*ws, ANA_vars_mc, INPUTMC.Data()  , TREE.Data(), "mc", SYSTEM.Data(), SELcuts);
 	RooDataSet* data = (RooDataSet*) ws->data("data");
 	RooDataSet* mc   = (RooDataSet*) ws->data("mc");
 	//DATA and MC SAMPLES
@@ -177,6 +181,43 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			stat_un.push_back((double) yield_Stat_unc[i]/yield_vec[i]*100);
 
 		//Resolution
+		if (TREE == "ntKstar") {
+
+   		RooRealVar* sigma1RTfit = ws->var(Form("sigma1RT%d_%s", _count, ""));
+
+    	RooRealVar* sigma2RTfit = ws->var(Form("sigma2RT%d_%s", _count, ""));
+
+    	RooRealVar* fracRTfit = ws->var(Form("fracRT%d_%s", _count, ""));
+
+    	if (
+        sigma1RTfit &&
+        sigma2RTfit &&
+        fracRTfit
+   		) {
+        scale_vec[i] = 1.0;
+        scale_vec_unc[i] = 0.0;
+
+        resol_vec[i] = std::sqrt(
+            fracRTfit->getVal() *
+                std::pow(sigma1RTfit->getVal(), 2)
+            +
+            (1.0 - fracRTfit->getVal()) *
+                std::pow(sigma2RTfit->getVal(), 2)
+        );resol_vec_unc[i] = 0.0;
+
+		} else {
+        scale_vec[i] = 1.0;
+        scale_vec_unc[i] = 0.0;
+        resol_vec[i] = 0.0;
+        resol_vec_unc[i] = 0.0;
+
+        std::cerr
+            << "Could not retrieve Bd RT resolution parameters."
+            << std::endl;
+    	}
+
+	} else {
+
 		RooRealVar* width_scale = static_cast<RooRealVar*>(f_results->floatParsFinal().at(f_results->floatParsFinal().index("scale")));
 		RooRealVar* sigma1 = static_cast<RooRealVar*>(f_results->constPars().at(f_results->constPars().index(Form("sigma1%d_", _count))));
 		RooRealVar* sigma2 = static_cast<RooRealVar*>(f_results->constPars().at(f_results->constPars().index(Form("sigma2%d_", _count))));
@@ -185,7 +226,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			scale_vec_unc[i] = width_scale->getError();
 			resol_vec[i]     = sqrt(weight->getVal() * pow(sigma1->getVal(), 2) + (1 - weight->getVal()) * pow(sigma2->getVal(), 2)) * scale_vec[i] ;
 			resol_vec_unc[i] = (scale_vec_unc[i] / scale_vec[i]) * resol_vec[i] ;
-
+	}
 		//chi2 (computed in fit() and stored in workspace)
 		RooRealVar* chi2_data_norm = ws->var(Form("chi2_data_norm%d_%s", _count, ""));
 		chi2_vec[i] = (chi2_data_norm ? chi2_data_norm->getVal() : -1.0);

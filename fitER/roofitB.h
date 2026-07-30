@@ -26,7 +26,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar sigma4cb(Form("sigma4cb%d_%s", _count, pdf.Data()), "", 0.005, 0.001, 0.05);
 	RooRealVar alpha(Form("alpha%d_%s", _count, pdf.Data()), "", 4., 0, 15);
 	RooRealVar n(Form("n_%d_%s", _count, pdf.Data()), "", 10, -100, 200);
-	RooRealVar* scale = new RooRealVar("scale", "scale", 1, 0.9, 1.15);
+	RooRealVar* scale = new RooRealVar("scale", "scale", 1, 0.5, 2);
 	RooProduct scaled_sigma1(Form("scaled_sigma1%d_%s", _count, pdf.Data()), "scaled_sigma1", RooArgList(*scale, sigma1));
 	RooProduct scaled_sigma2(Form("scaled_sigma2%d_%s", _count, pdf.Data()), "scaled_sigma2", RooArgList(*scale, sigma2));
 	RooProduct scaled_sigma3(Form("scaled_sigma3%d_%s", _count, pdf.Data()), "scaled_sigma3", RooArgList(*scale, sigma3));
@@ -38,22 +38,542 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar sig1frac(Form("sig1frac%d_%s", _count, pdf.Data()), "", 0.5, 0.01, 1);
 	RooRealVar sig2frac(Form("sig2frac%d_%s", _count, pdf.Data()), "", 0.5, 0.01, 1);
 
+	// ============================================================
+	// Signal and MC model pointers
+	// ============================================================
+
 	RooAddPdf* sig = nullptr;
+	RooAbsPdf* modelMC = nullptr;
+	RooFitResult* fitResultMC = nullptr;
+	RooRealVar* nsigMC = nullptr;
+
+
+	// Objects needed only for B0 RTWT
+	RooDataSet* dsMC_RT = nullptr;
+	RooDataSet* dsMC_WT = nullptr;
+	RooAddPdf* shapeRT = nullptr;
+	RooAddPdf* shapeWT = nullptr;
+	RooAddPdf* totalMC = nullptr;
+
+	RooRealVar* meanRT = nullptr;
+	RooRealVar* meanWT = nullptr;
+
+	RooRealVar* sigma1RT = nullptr;
+	RooRealVar* sigma2RT = nullptr;
+	RooRealVar* fracRT = nullptr;
+
+	RooRealVar* sigmaGWT = nullptr;
+	RooRealVar* sigmaLWT = nullptr;
+	RooRealVar* sigmaRWT = nullptr;
+	RooRealVar* fracWTG = nullptr;
+
+	RooRealVar* nRT = nullptr;
+	RooRealVar* nWT = nullptr;
+	RooRealVar* fWTMC = nullptr;
+
+	
+	/*if (tree == "ntKstar") {
+		dsMC_WT = static_cast<RooDataSet*>(dsMC->reduce("Bgen==41000"));
+		dsMC_RT = static_cast<RooDataSet*>(dsMC->reduce("((Bgen == 23333) || (Bgen == 24333) || (Bgen == 23433) || (Bgen == 24433))"));
+		std::cout << "Bd RT candidates: " << dsMC_RT->sumEntries() << std::endl;
+		std::cout << "Bd WT candidates: " << dsMC_WT->sumEntries() << std::endl;
+	}*/
+
+
+	/*if ((variation == "" && pdf == "") || variation == "background" || (variation == "signal" && pdf == "fixed")) sig = new RooAddPdf(Form("sig_doubleG%d_%s", _count, pdf.Data()), "", RooArgList(sig1, sig2), sig1frac);
+	if (variation == "signal" && pdf == "1gauss") sig = new RooAddPdf(Form("sig_Gaussian%d_%s", _count, pdf.Data()), "", RooArgList(sig1), RooArgList(), true);
+	if (variation == "signal" && pdf == "3gauss") sig = new RooAddPdf(Form("sig_tripleG%d_%s", _count, pdf.Data()), "", RooArgList(sig1, sig2, sig3), RooArgList(sig1frac, sig2frac), true);
+	if (variation == "signal" && pdf == "gauss_cb") sig = new RooAddPdf(Form("sig_gaussCB%d_%s", _count, pdf.Data()), "", RooArgList(sig1, CB), sig1frac);*/
+
+	//RooRealVar* nsigMC = new RooRealVar(Form("nsigMC%d_%s", _count, pdf.Data()), "", dsMC->sumEntries(), 0.9 * dsMC->sumEntries(), 1.1 * dsMC->sumEntries());
+	//RooAddPdf* modelMC = new RooAddPdf(Form("modelMC%d_%s", _count, pdf.Data()), "", RooArgList(*sig), RooArgList(*nsigMC));
+	//scale->setConstant();
+
+	mass->setRange("signal", init_mean - 0.07, init_mean + 0.07);
+	if (tree == "ntKp") mass->setRange("signal", init_mean - 0.1, init_mean + 0.1);
+	else if (tree == "ntKstar") mass->setRange("signal", init_mean - 0.2, init_mean + 0.2);
+	else if (tree == "ntphi") mass->setRange("signal", init_mean - 0.07, init_mean + 0.07);
+	else if (tree == "ntmix_X3872") mass->setRange("signal", init_mean - 0.035, init_mean + 0.035);
+	else if (tree == "ntmix_PSI2S") mass->setRange("signal", init_mean - 0.03, init_mean + 0.03);
+    
+	// ============================================================
+	// Special Bd RT/WT MC treatment
+	// ============================================================
+
+	if (tree == "ntKstar") {
+
+		std::cout << "\n========================================" << std::endl;
+		std::cout << "Running Bd RT/WT MC fit" << std::endl;
+		std::cout << "========================================\n" << std::endl;
+
+		// Check that Bgen exists inside dsMC
+		if (!dsMC->get()->find("Bgen")) {
+			std::cerr
+				<< "ERROR: Bgen is not present in the MC RooDataSet."
+				<< std::endl;
+			std::cerr
+				<< "Add Bgen to ANA_vars_mc in roofitB.C."
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		// Replace YOUR_RT_CODE with the actual right-tag Bgen code
+		dsMC_RT = static_cast<RooDataSet*>(
+			dsMC->reduce("((Bgen == 23333) || (Bgen == 24333) || (Bgen == 23433) || (Bgen == 24433))")
+		);
+
+		dsMC_WT = static_cast<RooDataSet*>(
+			dsMC->reduce("Bgen==41000")
+		);
+
+		if (!dsMC_RT || !dsMC_WT ||
+			dsMC_RT->numEntries() == 0 ||
+			dsMC_WT->numEntries() == 0) {
+
+			std::cerr
+				<< "ERROR: Empty Bd RT or WT dataset."
+				<< std::endl;
+
+			if (dsMC_RT) {
+				std::cerr
+					<< "RT entries = "
+					<< dsMC_RT->numEntries()
+					<< std::endl;
+			}
+
+			if (dsMC_WT) {
+				std::cerr
+					<< "WT entries = "
+					<< dsMC_WT->numEntries()
+					<< std::endl;
+			}
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "Bd RT entries = "
+			<< dsMC_RT->sumEntries()
+			<< std::endl;
+
+		std::cout
+			<< "Bd WT entries = "
+			<< dsMC_WT->sumEntries()
+			<< std::endl;
+
+		// ========================================================
+		// RT model: double Gaussian
+		// ========================================================
+
+		meanRT = new RooRealVar(
+			Form("meanRT%d_%s", _count, pdf.Data()),
+			"RT mean",
+			Bd_MASS,
+			Bd_MASS - 0.03,
+			Bd_MASS + 0.03
+		);
+
+		sigma1RT = new RooRealVar(
+			Form("sigma1RT%d_%s", _count, pdf.Data()),
+			"RT narrow width",
+			0.014,
+			0.002,
+			0.080
+		);
+
+		sigma2RT = new RooRealVar(
+			Form("sigma2RT%d_%s", _count, pdf.Data()),
+			"RT broad width",
+			0.034,
+			0.005,
+			0.150
+		);
+
+		fracRT = new RooRealVar(
+			Form("fracRT%d_%s", _count, pdf.Data()),
+			"RT narrow fraction",
+			0.80,
+			0.01,
+			0.99
+		);
+
+		RooGaussian* g1RT = new RooGaussian(
+			Form("g1RT%d_%s", _count, pdf.Data()),
+			"RT narrow Gaussian",
+			*mass,
+			*meanRT,
+			*sigma1RT
+		);
+
+		RooGaussian* g2RT = new RooGaussian(
+			Form("g2RT%d_%s", _count, pdf.Data()),
+			"RT broad Gaussian",
+			*mass,
+			*meanRT,
+			*sigma2RT
+		);
+
+		shapeRT = new RooAddPdf(
+			Form("shapeRT%d_%s", _count, pdf.Data()),
+			"RT double Gaussian",
+			RooArgList(*g1RT, *g2RT),
+			RooArgList(*fracRT)
+		);
+
+		// ========================================================
+		// WT model: Gaussian + bifurcated Gaussian
+		// ========================================================
+
+		meanWT = new RooRealVar(
+			Form("meanWT%d_%s", _count, pdf.Data()),
+			"WT mean",
+			Bd_MASS,
+			Bd_MASS - 0.10,
+			Bd_MASS + 0.10
+		);
+
+		sigmaGWT = new RooRealVar(
+			Form("sigmaGWT%d_%s", _count, pdf.Data()),
+			"WT Gaussian width",
+			0.020,
+			0.002,
+			0.150
+		);
+
+		sigmaLWT = new RooRealVar(
+			Form("sigmaLWT%d_%s", _count, pdf.Data()),
+			"WT left width",
+			0.030,
+			0.002,
+			0.250
+		);
+
+		sigmaRWT = new RooRealVar(
+			Form("sigmaRWT%d_%s", _count, pdf.Data()),
+			"WT right width",
+			0.050,
+			0.002,
+			0.250
+		);
+
+		fracWTG = new RooRealVar(
+			Form("fracWTG%d_%s", _count, pdf.Data()),
+			"WT Gaussian fraction",
+			0.50,
+			0.01,
+			0.99
+		);
+
+		RooGaussian* gWT = new RooGaussian(
+			Form("gWT%d_%s", _count, pdf.Data()),
+			"WT Gaussian",
+			*mass,
+			*meanWT,
+			*sigmaGWT
+		);
+
+		RooBifurGauss* bifWT = new RooBifurGauss(
+			Form("bifWT%d_%s", _count, pdf.Data()),
+			"WT asymmetric Gaussian",
+			*mass,
+			*meanWT,
+			*sigmaLWT,
+			*sigmaRWT
+		);
+
+		shapeWT = new RooAddPdf(
+			Form("shapeWT%d_%s", _count, pdf.Data()),
+			"WT Gaussian plus asymmetric Gaussian",
+			RooArgList(*gWT, *bifWT),
+			RooArgList(*fracWTG)
+		);
+
+		// ========================================================
+		// First MC fit: determine RT and WT shapes simultaneously
+		// ========================================================
+
+		RooRealVar* nRTshape = new RooRealVar(
+			Form("nRTshape%d_%s", _count, pdf.Data()),
+			"RT shape-fit yield",
+			dsMC_RT->sumEntries(),
+			0.5 * dsMC_RT->sumEntries(),
+			1.5 * dsMC_RT->sumEntries()
+		);
+
+		RooRealVar* nWTshape = new RooRealVar(
+			Form("nWTshape%d_%s", _count, pdf.Data()),
+			"WT shape-fit yield",
+			dsMC_WT->sumEntries(),
+			0.5 * dsMC_WT->sumEntries(),
+			1.5 * dsMC_WT->sumEntries()
+		);
+
+		RooExtendPdf* modelRTshape = new RooExtendPdf(
+			Form("modelRTshape%d_%s", _count, pdf.Data()),
+			"RT extended shape model",
+			*shapeRT,
+			*nRTshape
+		);
+
+		RooExtendPdf* modelWTshape = new RooExtendPdf(
+			Form("modelWTshape%d_%s", _count, pdf.Data()),
+			"WT extended shape model",
+			*shapeWT,
+			*nWTshape
+		);
+
+		RooCategory* sample = new RooCategory(
+			Form("sample%d_%s", _count, pdf.Data()),
+			"RT WT category"
+		);
+
+		sample->defineType("RT");
+		sample->defineType("WT");
+
+		RooDataSet* combData = new RooDataSet(
+			Form("combData%d_%s", _count, pdf.Data()),
+			"Combined RT and WT dataset",
+			RooArgSet(*mass),
+			Index(*sample),
+			Import("RT", *dsMC_RT),
+			Import("WT", *dsMC_WT)
+		);
+
+		RooSimultaneous* simPdf = new RooSimultaneous(
+			Form("simPdf%d_%s", _count, pdf.Data()),
+			"Simultaneous RT WT model",
+			*sample
+		);
+
+		simPdf->addPdf(*modelRTshape, "RT");
+		simPdf->addPdf(*modelWTshape, "WT");
+
+		RooFitResult* shapeFitResult = simPdf->fitTo(
+			*combData,
+			Save(),
+			Extended(true),
+			Range("signal"),
+			Strategy(2),
+			Offset(true),
+			PrintLevel(-1)
+		);
+
+		if (!shapeFitResult) {
+			std::cerr
+				<< "ERROR: Bd RT/WT shape fit failed."
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "RT/WT shape fit status = "
+			<< shapeFitResult->status()
+			<< std::endl;
+
+		std::cout
+			<< "RT/WT shape fit covQual = "
+			<< shapeFitResult->covQual()
+			<< std::endl;
+
+		// Freeze the RT and WT shapes after the truth-separated fit
+		meanRT->setConstant(true);
+		meanWT->setConstant(true);
+
+		sigma1RT->setConstant(true);
+		sigma2RT->setConstant(true);
+		fracRT->setConstant(true);
+
+		sigmaGWT->setConstant(true);
+		sigmaLWT->setConstant(true);
+		sigmaRWT->setConstant(true);
+		fracWTG->setConstant(true);
+
+		// ========================================================
+		// Second MC fit: fit total MC with fixed RT and WT shapes
+		// ========================================================
+
+		nRT = new RooRealVar(
+			Form("nRT%d_%s", _count, pdf.Data()),
+			"Total-MC RT yield",
+			dsMC_RT->sumEntries(),
+			0.0,
+			1.5 * dsMC->sumEntries()
+		);
+
+		nWT = new RooRealVar(
+			Form("nWT%d_%s", _count, pdf.Data()),
+			"Total-MC WT yield",
+			dsMC_WT->sumEntries(),
+			0.0,
+			1.5 * dsMC->sumEntries()
+		);
+
+		totalMC = new RooAddPdf(
+			Form("totalMC%d_%s", _count, pdf.Data()),
+			"Total Bd RT plus WT MC",
+			RooArgList(*shapeRT, *shapeWT),
+			RooArgList(*nRT, *nWT)
+		);
+
+		fitResultMC = totalMC->fitTo(
+			*dsMC,
+			Save(),
+			Extended(true),
+			Range("signal"),
+			Strategy(2),
+			Offset(true),
+			PrintLevel(-1)
+		);
+
+		if (!fitResultMC) {
+			std::cerr
+				<< "ERROR: Total Bd MC fit failed."
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "Total Bd MC fit status = "
+			<< fitResultMC->status()
+			<< std::endl;
+
+		std::cout
+			<< "Total Bd MC fit covQual = "
+			<< fitResultMC->covQual()
+			<< std::endl;
+
+		std::cout
+			<< "Fitted RT yield = "
+			<< nRT->getVal()
+			<< " +/- "
+			<< nRT->getError()
+			<< std::endl;
+
+		std::cout
+			<< "Fitted WT yield = "
+			<< nWT->getVal()
+			<< " +/- "
+			<< nWT->getError()
+			<< std::endl;
+
+		const double totalFittedMC =
+			nRT->getVal() + nWT->getVal();
+
+		if (totalFittedMC <= 0.0) {
+			std::cerr
+				<< "ERROR: Total fitted Bd MC yield is zero."
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		const double fittedFWT =
+			nWT->getVal() / totalFittedMC;
+
+		fWTMC = new RooRealVar(
+			Form("fWTMC%d_%s", _count, pdf.Data()),
+			"Fitted WT fraction",
+			fittedFWT
+		);
+
+		fWTMC->setConstant(true);
+
+		// Final normalized signal shape for the DATA fit
+		// sig = fWT * WT + (1-fWT) * RT
+		sig = new RooAddPdf(
+			Form("sigBdRTWT%d_%s", _count, pdf.Data()),
+			"Bd RT plus WT signal",
+			RooArgList(*shapeWT, *shapeRT),
+			RooArgList(*fWTMC)
+		);
+
+		// Keep the nsigMC name expected by roofitB.C
+		nsigMC = new RooRealVar(
+			Form("nsigMC%d_%s", _count, pdf.Data()),
+			"Total fitted Bd MC yield",
+			totalFittedMC
+		);
+
+		nsigMC->setError(
+			std::sqrt(
+				std::pow(nRT->getError(), 2) +
+				std::pow(nWT->getError(), 2)
+			)
+		);
+
+		nsigMC->setConstant(true);
+
+		modelMC = totalMC;
+
+		w.import(*nsigMC);
+		w.import(*fWTMC);
+		w.import(*sigma1RT);
+		w.import(*sigma2RT);
+		w.import(*fracRT);
+		w.import(*shapeRT);
+		w.import(*shapeWT);
+	}
+
+// ============================================================
+// Ordinary MC fit for all non-Bd channels
+// ============================================================
+
+	else {
+
 	if ((variation == "" && pdf == "") || variation == "background" || (variation == "signal" && pdf == "fixed")) sig = new RooAddPdf(Form("sig_doubleG%d_%s", _count, pdf.Data()), "", RooArgList(sig1, sig2), sig1frac);
 	if (variation == "signal" && pdf == "1gauss") sig = new RooAddPdf(Form("sig_Gaussian%d_%s", _count, pdf.Data()), "", RooArgList(sig1), RooArgList(), true);
 	if (variation == "signal" && pdf == "3gauss") sig = new RooAddPdf(Form("sig_tripleG%d_%s", _count, pdf.Data()), "", RooArgList(sig1, sig2, sig3), RooArgList(sig1frac, sig2frac), true);
 	if (variation == "signal" && pdf == "gauss_cb") sig = new RooAddPdf(Form("sig_gaussCB%d_%s", _count, pdf.Data()), "", RooArgList(sig1, CB), sig1frac);
 
-	RooRealVar* nsigMC = new RooRealVar(Form("nsigMC%d_%s", _count, pdf.Data()), "", dsMC->sumEntries(), 0.9 * dsMC->sumEntries(), 1.1 * dsMC->sumEntries());
-	RooAddPdf* modelMC = new RooAddPdf(Form("modelMC%d_%s", _count, pdf.Data()), "", RooArgList(*sig), RooArgList(*nsigMC));
-	scale->setConstant();
+    if (!sig) {
+        std::cerr
+            << "ERROR: No signal PDF was created for "
+            << tree
+            << ", variation="
+            << variation
+            << ", pdf="
+            << pdf
+            << std::endl;
 
-	mass->setRange("signal", init_mean - 0.07, init_mean + 0.07);
-	if (tree == "ntKp") mass->setRange("signal", init_mean - 0.1, init_mean + 0.1);
-	else if (tree == "ntmix_X3872") mass->setRange("signal", init_mean - 0.035, init_mean + 0.035);
-	else if (tree == "ntmix_PSI2S") mass->setRange("signal", init_mean - 0.03, init_mean + 0.03);
+        return nullptr;
+    	}
 
-	RooFitResult* fitResultMC = modelMC->fitTo(*dsMC, Save(), Extended(), Range("signal"));
+    nsigMC = new RooRealVar(
+        Form("nsigMC%d_%s", _count, pdf.Data()),
+        "",
+        dsMC->sumEntries(),
+        0.9 * dsMC->sumEntries(),
+        1.1 * dsMC->sumEntries()
+   		 );
+
+    modelMC = new RooAddPdf(
+        Form("modelMC%d_%s", _count, pdf.Data()),
+        "",
+        RooArgList(*sig),
+        RooArgList(*nsigMC)
+    	);
+
+    scale->setConstant(true);
+
+    fitResultMC = modelMC->fitTo(
+        *dsMC,
+        Save(),
+        Extended(true),
+        Range("signal"),
+        Strategy(2),
+        Offset(true)
+    	);
+
+    w.import(*nsigMC);
+	}
+
+
+	//if (tree != "ntKstar") {RooFitResult* fitResultMC = modelMC->fitTo(*dsMC, Save(), Extended(), Range("signal"));}
+	//else {RooFitResult* fitResultMC = modelMC->fitTo(*combData, Save(), Extended(kTRUE), Range("signal"));}
+
 	w.import(*nsigMC);
 
 	cMC->Clear();
@@ -101,17 +621,31 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	pMC1->cd();
 	const int signalColor = (tree == "ntmix_PSI2S") ? kOrange - 2 : kOrange - 3;
 	dsMC->plotOn(frameMC, Name(Form("dsMC%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
-	modelMC->plotOn(frameMC, Name(Form("sigMC%d_%s", _count, pdf.Data())), Range("signal"), NormRange("signal"), Normalization(nsigMC->getVal(), RooAbsReal::NumEvent), DrawOption("LF"), FillStyle(3002), FillColor(signalColor), LineStyle(7), LineColor(signalColor), LineWidth(1));
-	modelMC->plotOn(frameMC, Name(Form("modelMCcurve%d_%s", _count, pdf.Data())), DrawOption("L"), LineWidth(0));
-	modelMC->paramOn(frameMC, Layout(0.18, 0.48, 0.82), Format("NEU", AutoPrecision(2)));
+	if (tree == "ntKstar") {
 
-    TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", modelMC->GetName())));
+    	totalMC->plotOn(frameMC,Name(Form("sigMC%d_%s", _count, pdf.Data())),Range("signal"),NormRange("signal"),DrawOption("LF"),FillStyle(3002),FillColor(signalColor),LineStyle(7),LineColor(signalColor),LineWidth(1));
+		totalMC->plotOn(frameMC,Name(Form("rtComp%d_%s", _count, pdf.Data())),Components(*shapeRT),Range("signal"),NormRange("signal"),LineColor(kGreen + 2),LineStyle(kDashed),LineWidth(2));
+		totalMC->plotOn(frameMC,Name(Form("wtComp%d_%s", _count, pdf.Data())),Components(*shapeWT),Range("signal"),NormRange("signal"),LineColor(kMagenta + 1),LineStyle(kDashed),LineWidth(2));
+   		totalMC->plotOn(frameMC,Name(Form("modelMCcurve%d_%s", _count, pdf.Data())),DrawOption("L"),LineWidth(0));
+    	totalMC->paramOn(frameMC,Layout(0.18, 0.48, 0.82),Format("NEU", AutoPrecision(2)));
+	} else {
+		modelMC->plotOn(frameMC, Name(Form("sigMC%d_%s", _count, pdf.Data())), Range("signal"), NormRange("signal"), Normalization(nsigMC->getVal(), RooAbsReal::NumEvent), DrawOption("LF"), FillStyle(3002), FillColor(signalColor), LineStyle(7), LineColor(signalColor), LineWidth(1));
+		modelMC->plotOn(frameMC, Name(Form("modelMCcurve%d_%s", _count, pdf.Data())), DrawOption("L"), LineWidth(0));
+		modelMC->paramOn(frameMC, Layout(0.18, 0.48, 0.82), Format("NEU", AutoPrecision(2)));
+	}
+    /*TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", modelMC->GetName())));*/
+	TString mcParamModelName = (tree == "ntKstar")
+        ? totalMC->GetName()
+        : modelMC->GetName();
+
+	TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", mcParamModelName.Data())));
+
     if (paramBoxMC) {
       paramBoxMC->SetTextSize(0.022);
       paramBoxMC->SetTextFont(42);
       paramBoxMC->SetFillStyle(0);
       paramBoxMC->SetBorderSize(0);
-
+    
 	  // Reduce vertical gaps: make the box shorter
       paramBoxMC->SetY1NDC(0.72);
       paramBoxMC->SetY2NDC(0.82);
@@ -134,6 +668,14 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	legMC->SetFillStyle(0);
 	legMC->AddEntry(frameMC->findObject(Form("dsMC%d_%s", _count, pdf.Data())), "Signal MC", "lp");
 	legMC->AddEntry(frameMC->findObject(Form("sigMC%d_%s", _count, pdf.Data())), "Signal PDF", "f");
+
+	if (tree == "ntKstar") {
+
+		legMC->AddEntry(frameMC->findObject(Form("rtComp%d_%s", _count, pdf.Data())), "RT component", "l");
+		legMC->AddEntry(frameMC->findObject(Form("wtComp%d_%s", _count, pdf.Data())),"WT component", "l");
+
+	}
+
 	legMC->Draw();
 
 	double n_signal_initial = ds->sumEntries(TString::Format("abs(Bmass-%g)<%g", init_mean, (tree == "ntmix_X3872" || tree == "ntmix_PSI2S") ? 0.005 : 0.05));
@@ -149,7 +691,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooChebychev bkg_2nd(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgList(a0, a1));
 	RooChebychev bkg_3rd(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2));
 	RooChebychev bkg_4th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3));
-	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 0.1);
+	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 5.);
 	RooExponential bkg(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, lambda);
 	RooRealVar p_lin(Form("p_lin%d_%s", _count, pdf.Data()), "Linear slope", 0.0, -5.0, 5.0);
 	RooPolynomial bkg_lin(Form("bkg_lin%d_%s", _count, pdf.Data()), "Linear Background", *mass, RooArgList(p_lin), 1);
@@ -164,15 +706,15 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooGaussian bkg_gauss2(Form("bkg_gauss2%d_%s", _count, pdf.Data()), "bkg_gauss2", *mass, bkg_gauss2_mean, bkg_gauss2_sigma);
 	RooRealVar nbkg_gauss2(Form("nbkg_gauss2%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
 
-	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 9000, 6000, 10000);
-	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.001, 0.1);
-	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
+	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 9000, 0, 10000);
+	//RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.001, 0.1);
+	//RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
 
 	// Fixing the parameters of the background PDFs based on the results of the fit to the inclusive data sample
-    //RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.054);
-	//m_nonprompt_scale->setConstant(true);
-	//RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.1397);
-    //m_nonprompt_shift->setConstant(true);
+    RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.0464);
+	m_nonprompt_scale->setConstant(true);
+	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.1362);
+    m_nonprompt_shift->setConstant(true);
 
 	RooGenericPdf* erfc = new RooGenericPdf(Form("erfc%d", _count), "0.5*TMath::Erfc((@0-@2)/@1)", RooArgList(*mass, *m_nonprompt_scale, *m_nonprompt_shift));
 
@@ -201,23 +743,30 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		if (variation == "signal" && pdf == "1gauss") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(bkg, sig1, *erfc), RooArgList(nbkg, nsig, nbkg_part_r));
 		if (variation == "signal" && (pdf == "3gauss" || pdf == "fixed" || pdf == "gauss_cb")) model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg, *erfc), RooArgList(nsig, nbkg, nbkg_part_r));
 	}
+	if (tree != "ntKstar") {
 
-	scale->setConstant(false);
-	sigma1.setConstant();
-	if (pdf != "1gauss") {
-		sigma2.setConstant();
-		sig1frac.setConstant();
+		scale->setConstant(false);
+		sigma1.setConstant();
+		if (pdf != "1gauss") {
+			sigma2.setConstant();
+			sig1frac.setConstant();
+		}
+		if (variation == "signal" && pdf == "3gauss") {
+			sigma3.setConstant();
+			sig2frac.setConstant();
+		}
+		if (variation == "signal" && pdf == "gauss_cb") {
+			sigma4cb.setConstant();
+			n.setConstant();
+			alpha.setConstant();
+		}
+		if (variation == "signal" && pdf == "fixed") mean.setConstant();
+
+	} else {
+
+    // Allow a common data/MC resolution correction.
+    scale->setConstant(false);
 	}
-	if (variation == "signal" && pdf == "3gauss") {
-		sigma3.setConstant();
-		sig2frac.setConstant();
-	}
-	if (variation == "signal" && pdf == "gauss_cb") {
-		sigma4cb.setConstant();
-		n.setConstant();
-		alpha.setConstant();
-	}
-	if (variation == "signal" && pdf == "fixed") mean.setConstant();
 
 	TString fitRange = (pdf == "mass_range") ? "m_rangeB" : "all";
 	RooFitResult* fitResult = model->fitTo(*ds, Save(), Extended(kTRUE), Range(fitRange));
@@ -264,6 +813,10 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	model->plotOn(frame, Name(Form("model%d_%s", _count, pdf.Data())), Range(fitRange), NormRange(fitRange), Precision(1e-6), DrawOption("L"), LineColor(2), LineWidth(1));
 	model->plotOn(frame, Name(Form("sig%d_%s", _count, pdf.Data())), Components(*sig), DrawOption("LF"), FillStyle(3002), FillColor(signalColor), LineStyle(7), LineColor(signalColor), LineWidth(1));
 	if (tree == "ntKp") model->plotOn(frame, RooFit::Name(Form("erfc%d_%s", _count, "")), Components(*erfc), Range(fitRange), NormRange(fitRange), LineColor(kGreen + 3), LineStyle(9), LineWidth(2), DrawOption("L"));
+	if (tree == "ntKstar") { 
+		model->plotOn(frame, Name(Form("rtComp%d_%s", _count, pdf.Data())), Components(*shapeRT), Range(fitRange), NormRange(fitRange), LineColor(kGreen + 2), LineStyle(kDashed), LineWidth(2));
+		model->plotOn(frame, Name(Form("wtComp%d_%s", _count, pdf.Data())), Components(*shapeWT), Range(fitRange), NormRange(fitRange), LineColor(kMagenta + 1), LineStyle(kDashed), LineWidth(2));
+	}
 	model->plotOn(frame, Name(Form("bkg%d_%s", _count, pdf.Data())), Components(bkg), Range(fitRange), NormRange(fitRange), Precision(1e-6), DrawOption("L"), LineStyle(7), LineColor(4), LineWidth(1));
 	double chi2Ndf = frame->chiSquare(Form("model%d_%s", _count, pdf.Data()), Form("ds_cut%d", _count), fitResult->floatParsFinal().getSize());
 	if (!std::isfinite(chi2Ndf) || chi2Ndf < 0) chi2Ndf = -1.0;
@@ -307,6 +860,8 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		leg->AddEntry(frame->findObject(Form("sig%d_%s", _count, pdf.Data())), " B_{s}^{0} #rightarrow J/#psi K^{+}K^{-}", "f");
 	} else if (tree == "ntKstar") {
 		leg->AddEntry(frame->findObject(Form("sig%d_%s", _count, pdf.Data())), " B^{0} #rightarrow J/#psi K^{*}", "f");
+		leg->AddEntry(frame->findObject(Form("rtComp%d_%s", _count, pdf.Data())), "RT component", "l");
+		leg->AddEntry(frame->findObject(Form("wtComp%d_%s", _count, pdf.Data())), "WT component", "l");
 	}
 	leg->Draw();
 

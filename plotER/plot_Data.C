@@ -14,7 +14,7 @@
 #include "aux/parameters.h"
 #include "aux/masses.h"
 
-void plot_Data(TString TREE ="ntmix", TString systemNAME = "ppRef"){
+void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
     gStyle->SetOptStat(0);
 
     // Create a TChain and add all files from the directory
@@ -36,7 +36,7 @@ void plot_Data(TString TREE ="ntmix", TString systemNAME = "ppRef"){
         if (TREE == "ntmix"){     chain.Add("/eos/home-l/leyao/pbpb_work/X_analysis/XGBoost/output/selected/X_pp24_v3_fid2_4v1_xgb_v1/DATA_with_score.root");}
         else if (TREE == "ntKp") {  chain.Add("./../../RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKp_ppRef_DATA.root");}
         else if (TREE == "ntphi"){  chain.Add("./../../RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntphi_ppRef_DATA.root");}
-        else if (TREE == "ntKstar"){chain.Add("./../../RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKstar_ppRef_DATA.root");}
+        else if (TREE == "ntKstar"){chain.Add("/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKstar_ppRef_MC.root");}
     }
 
     // Create a canvas to draw the histogram
@@ -44,8 +44,8 @@ void plot_Data(TString TREE ="ntmix", TString systemNAME = "ppRef"){
     canvas->SetLeftMargin(0.15); // or try 0.18 for more space
 
     // Define histogram parameters
-    double hist_Xlow = 5.2;     // Minimum Bmass
-    double hist_Xhigh = 5.35;  // Maximum Bmass
+    double hist_Xlow = 5.;     // Minimum Bmass
+    double hist_Xhigh = 5.5;  // Maximum Bmass
     if (TREE == "ntmix"){hist_Xlow = 3.6; hist_Xhigh = 4.0;}
     int nbinsmasshisto = 80;    
     double bin_length_MEV = (hist_Xhigh - hist_Xlow)*1000 / nbinsmasshisto;
@@ -76,7 +76,8 @@ void plot_Data(TString TREE ="ntmix", TString systemNAME = "ppRef"){
         }
     }
 
-    else if (TREE != "ntmix"){ SELECTIONcuts = "Bnorm_svpvDistance_2D > 2 && Bpt > 7.5 && BtrkPtimb < 0.3 && Bchi2Prob > 0.02" ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
+    //else if (TREE != "ntmix"){ SELECTIONcuts = "Bnorm_svpvDistance_2D > 4 " ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
+    else if (TREE != "ntmix"){ SELECTIONcuts = "Bgen == 41000 " ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
 
     //KSTAR_MASS 0.89594   
 

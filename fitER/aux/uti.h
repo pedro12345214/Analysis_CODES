@@ -15,6 +15,7 @@
 #include "RooChebychev.h"
 #include "RooPolynomial.h"
 #include "RooExponential.h"
+#include "RooBifurGauss.h"
 #include "RooAddPdf.h"
 #include "RooExtendPdf.h"
 #include "RooPlot.h"
@@ -72,6 +73,8 @@
 #include <stdio.h>
 #include "TParameter.h"
 #include "TObjString.h"
+#include "RooSimultaneous.h"
+#include "RooCategory.h"
 
 using namespace std;
 
