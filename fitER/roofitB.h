@@ -120,7 +120,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 
 		// Replace YOUR_RT_CODE with the actual right-tag Bgen code
 		dsMC_RT = static_cast<RooDataSet*>(
-			dsMC->reduce("((Bgen == 23333) || (Bgen == 24333) || (Bgen == 23433) || (Bgen == 24433))")
+			dsMC->reduce("Bgen != 41000")
 		);
 
 		dsMC_WT = static_cast<RooDataSet*>(
@@ -688,9 +688,11 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar a1(Form("a1%d_%s", _count, pdf.Data()), "", -0.05, -2, 2);
 	RooRealVar a2(Form("a2%d_%s", _count, pdf.Data()), "", 0.01, -2, 2);
 	RooRealVar a3(Form("a3%d_%s", _count, pdf.Data()), "", 0, -2, 2);
+	RooRealVar a4(Form("a4%d_%s", _count, pdf.Data()), "", 0, -2, 2);
 	RooChebychev bkg_2nd(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgList(a0, a1));
 	RooChebychev bkg_3rd(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2));
 	RooChebychev bkg_4th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3));
+	RooChebychev bkg_5th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3, a4));
 	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 5.);
 	RooExponential bkg(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, lambda);
 	RooRealVar p_lin(Form("p_lin%d_%s", _count, pdf.Data()), "Linear slope", 0.0, -5.0, 5.0);
@@ -707,14 +709,14 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar nbkg_gauss2(Form("nbkg_gauss2%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
 
 	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 9000, 0, 10000);
-	//RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.001, 0.1);
-	//RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
+	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.001, 0.1);
+	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
 
 	// Fixing the parameters of the background PDFs based on the results of the fit to the inclusive data sample
-    RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.0464);
-	m_nonprompt_scale->setConstant(true);
-	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.1362);
-    m_nonprompt_shift->setConstant(true);
+    //RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.0464);
+	//m_nonprompt_scale->setConstant(true);
+	//RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.1362);
+    //m_nonprompt_shift->setConstant(true);
 
 	RooGenericPdf* erfc = new RooGenericPdf(Form("erfc%d", _count), "0.5*TMath::Erfc((@0-@2)/@1)", RooArgList(*mass, *m_nonprompt_scale, *m_nonprompt_shift));
 
@@ -725,14 +727,17 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	}
 	if (tree == "ntphi") {
 		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig,nbkg));
-		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
+		//if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "5th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_5th), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntKstar") {
-		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
+		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 		//if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
-		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
+		//if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "5th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_5th), RooArgList(nsig, nbkg));
+
 	}
 	if (tree == "ntKp") {
 		if ((variation == "" && pdf == "")) model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg, *erfc), RooArgList(nsig, nbkg, nbkg_part_r));
@@ -832,6 +837,25 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
     	paramBox->SetTextFont(42);
     	paramBox->SetFillStyle(0);
     	paramBox->SetBorderSize(0);
+	}
+
+	if (tree == "ntKstar" && paramBox) {
+
+    const double fWT = fWTMC->getVal();
+
+    const double nRTData = (1.0 - fWT) * nsig.getVal();
+
+    const double nWTData = fWT * nsig.getVal();
+
+    const double nRTDataErr = (1.0 - fWT) * nsig.getError();
+
+    const double nWTDataErr = fWT * nsig.getError();
+
+    paramBox->AddText(Form("N_{RT} = %.0f #pm %.0f",nRTData,nRTDataErr));
+
+    paramBox->AddText(Form("N_{WT} = %.0f #pm %.0f", nWTData, nWTDataErr));
+
+    paramBox->AddText(Form("f_{WT} = %.3f", fWT));
 	}
 
 	frame->getAttFill()->SetFillStyle(0);
