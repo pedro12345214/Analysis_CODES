@@ -247,13 +247,13 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 				RooArgList()
 			);
 		} else {
-		shapeRT = new RooAddPdf(
-			Form("shapeRT%d_%s", _count, pdf.Data()),
-			"RT double Gaussian",
-			RooArgList(*g1RT, *g2RT),
-			RooArgList(*frac1RT)
-		);
-
+            shapeRT = new RooAddPdf(
+                Form("shapeRT%d_%s", _count, pdf.Data()),
+                "RT double Gaussian",	
+                RooArgList(*g1RT, *g2RT),
+                RooArgList(*frac1RT)
+            );
+        }
 		// ========================================================
 		// WT model: Gaussian + bifurcated Gaussian
 		// ========================================================
@@ -416,7 +416,9 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 
 		sigma1RT->setConstant(true);
 		sigma2RT->setConstant(true);
-		fracRT->setConstant(true);
+		sigma3RT->setConstant(true);
+		frac1RT->setConstant(true);
+		frac2RT->setConstant(true);
 
 		sigmaGWT->setConstant(true);
 		sigmaLWT->setConstant(true);
@@ -545,7 +547,9 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		w.import(*fWTMC);
 		w.import(*sigma1RT);
 		w.import(*sigma2RT);
-		w.import(*fracRT);
+		w.import(*sigma3RT);
+		w.import(*frac1RT);
+		w.import(*frac2RT);
 		w.import(*shapeRT);
 		w.import(*shapeWT);
 	}

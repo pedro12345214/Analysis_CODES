@@ -13,7 +13,7 @@ MC_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_x
 ## CUTS (SELECTION ?) here 
 #CUTs="Bnorm_svpvDistance_2D > 4"
 CUTs="Prediction > 0.92 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" 
-#CUTs= "Prediction > 0.93 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" #pb
+#CUTs="Prediction > 0.93 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" #pb
 
 ##
 syst="ppRef"

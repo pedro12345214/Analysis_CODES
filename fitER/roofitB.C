@@ -16,7 +16,7 @@ void read_samples(RooWorkspace& w, vector<TString> label, TString fName, TString
 std::pair<int, std::vector<double>> defineBinning(const TString& var, const TString& tree, int full);
 
 // PDF VARIATION FOR SYST STUDIES
-int syst_study=1;
+int syst_study=0;
 
 // PROFILE LIKELIHOOD SIGNIFICANCE + INCLUSIVE SCAN
 int use_profile_likelihood = 0;
