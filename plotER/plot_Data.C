@@ -14,7 +14,7 @@
 #include "aux/parameters.h"
 #include "aux/masses.h"
 
-void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
+void plot_Data(TString TREE ="ntKstar", TString systemNAME = "PbPb"){
     gStyle->SetOptStat(0);
 
     // Create a TChain and add all files from the directory
@@ -26,9 +26,10 @@ void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
     } else if(systemNAME.Contains("PbPb24")) {//PbPb24 data
         chain.Add("/eos/user/k/kprince/X3872_PbPb/DATA_24b_PbPb_AANN.root");
     }else if (systemNAME.Contains("PbPb")){
+        chain.Add("/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pb24_v1_fid1_14v1_xgb_v1/MC_with_score.root");
         //chain.Add("/eos/user/h/hmarques/Analysis_CODES/selectionER/ML_xgboost/scored_samples/flat_ntmix_PbPb_scored_DATA.root");
-        chain.Add("/eos/user/k/kprince/X3872_PbPb/DATA_PbPb_AANN.root");
-        chain.Add("/eos/user/k/kprince/X3872_PbPb/DATA_24_PbPb_AANN.root");
+        //chain.Add("/eos/user/k/kprince/X3872_PbPb/DATA_PbPb_AANN.root");
+        //chain.Add("/eos/user/k/kprince/X3872_PbPb/DATA_24_PbPb_AANN.root");
     }else { //ppRef data
         //if (TREE == "ntmix"){       chain.Add("/eos/user/k/kprince/X3872_pp_new/DATA_pp_VAANN.root");}
         //if (TREE == "ntmix"){       chain.Add("/eos/user/k/kprince/X3872_pp_new/DATA_pp_AANN.root");}
@@ -36,7 +37,7 @@ void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
         if (TREE == "ntmix"){     chain.Add("/eos/home-l/leyao/pbpb_work/X_analysis/XGBoost/output/selected/X_pp24_v3_fid2_4v1_xgb_v1/DATA_with_score.root");}
         else if (TREE == "ntKp") {  chain.Add("./../../RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKp_ppRef_DATA.root");}
         else if (TREE == "ntphi"){  chain.Add("./../../RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntphi_ppRef_DATA.root");}
-        else if (TREE == "ntKstar"){chain.Add("/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/ppRef/flat_ntKstar_ppRef_MC.root");}
+        else if (TREE == "ntKstar"){chain.Add("/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_xgb_v1/MC_with_score.root");}
     }
 
     // Create a canvas to draw the histogram
@@ -45,7 +46,7 @@ void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
 
     // Define histogram parameters
     double hist_Xlow = 5.;     // Minimum Bmass
-    double hist_Xhigh = 5.5;  // Maximum Bmass
+    double hist_Xhigh = 5.6;  // Maximum Bmass
     if (TREE == "ntmix"){hist_Xlow = 3.6; hist_Xhigh = 4.0;}
     int nbinsmasshisto = 80;    
     double bin_length_MEV = (hist_Xhigh - hist_Xlow)*1000 / nbinsmasshisto;
@@ -77,7 +78,7 @@ void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
     }
 
     //else if (TREE != "ntmix"){ SELECTIONcuts = "Bnorm_svpvDistance_2D > 4 " ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
-    else if (TREE != "ntmix"){ SELECTIONcuts = "Bgen == 41000 " ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
+    else if (TREE != "ntmix"){ SELECTIONcuts = "Bgen != 41000 " ;} // Bnorm_svpvDistance_2D > 4 && Bpt > 7.5 && BtrkPtimb < 0.2 Bnorm_svpvDistance_2D > 4 &&
 
     //KSTAR_MASS 0.89594   
 
@@ -133,7 +134,7 @@ void plot_Data(TString TREE ="ntKstar", TString systemNAME = "ppRef"){
     gPad->Update();
 
     // Save the canvas as an image
-    canvas->SaveAs(Form("DATA_%s_%s_Bmass.pdf", systemNAME.Data(), TREE.Data()));
+    canvas->SaveAs(Form("DATA_%s_%s_Bmass_RT.pdf", systemNAME.Data(), TREE.Data()));
 
     // Clean up
     delete hist_Bmass;

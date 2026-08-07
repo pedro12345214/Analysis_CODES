@@ -26,7 +26,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar sigma4cb(Form("sigma4cb%d_%s", _count, pdf.Data()), "", 0.005, 0.001, 0.05);
 	RooRealVar alpha(Form("alpha%d_%s", _count, pdf.Data()), "", 4., 0, 15);
 	RooRealVar n(Form("n_%d_%s", _count, pdf.Data()), "", 10, -100, 200);
-	RooRealVar* scale = new RooRealVar("scale", "scale", 1, 0.1, 10);
+	RooRealVar* scale = new RooRealVar("scale", "scale", 1, 0.5, 1.5);
 	RooProduct scaled_sigma1(Form("scaled_sigma1%d_%s", _count, pdf.Data()), "scaled_sigma1", RooArgList(*scale, sigma1));
 	RooProduct scaled_sigma2(Form("scaled_sigma2%d_%s", _count, pdf.Data()), "scaled_sigma2", RooArgList(*scale, sigma2));
 	RooProduct scaled_sigma3(Form("scaled_sigma3%d_%s", _count, pdf.Data()), "scaled_sigma3", RooArgList(*scale, sigma3));
@@ -730,7 +730,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooChebychev bkg_3rd(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2));
 	RooChebychev bkg_4th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3));
 	RooChebychev bkg_5th(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, RooArgSet(a0, a1, a2, a3, a4));
-	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 5.);
+	RooRealVar lambda(Form("lambda%d_%s", _count, pdf.Data()), "lambda", -0.5, -5., 0.);
 	RooExponential bkg(Form("bkg%d_%s", _count, pdf.Data()), "", *mass, lambda);
 	RooRealVar p_lin(Form("p_lin%d_%s", _count, pdf.Data()), "Linear slope", 0.0, -5.0, 5.0);
 	RooPolynomial bkg_lin(Form("bkg_lin%d_%s", _count, pdf.Data()), "Linear Background", *mass, RooArgList(p_lin), 1);
@@ -745,9 +745,9 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooGaussian bkg_gauss2(Form("bkg_gauss2%d_%s", _count, pdf.Data()), "bkg_gauss2", *mass, bkg_gauss2_mean, bkg_gauss2_sigma);
 	RooRealVar nbkg_gauss2(Form("nbkg_gauss2%d_%s", _count, pdf.Data()), "", ds->sumEntries() * 500, 0.0, ds->sumEntries());
 
-	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 9000, 0, 10000);
-	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.04, 0.0001, 0.5);
-	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.1, 5.2);
+	RooRealVar nbkg_part_r(Form("nbkg_part_r%d_%s", _count, pdf.Data()), "", 3000, 0, 10000);
+	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.02, 0.005, 0.05);
+	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.12, 5.14);
 
 	// Fixing the parameters of the background PDFs based on the results of the fit to the inclusive data sample
     //RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.0464);

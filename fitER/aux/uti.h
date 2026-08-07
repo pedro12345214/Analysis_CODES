@@ -399,7 +399,7 @@ inline void DrawCmsHeader(
 	if (!pad) return;
 	TString rightText = "";
 	if (COLsystem=="ppRef" || COLsystem=="ppRef_nonPrompt") rightText = "pp #sqrt{s}=5.36 TeV, (L=455.7 pb^{-1})" ;
-	else if (COLsystem=="PbPb") rightText = "PbPb #sqrt{s_{NN}}=5.36 TeV, (L=3.5 nb^{-1})" ;
+	else if (COLsystem=="PbPb") rightText = "PbPb #sqrt{s_{NN}}=5.36 TeV, (L=1.67 nb^{-1})" ;
 
 
 	pad->cd();
@@ -457,7 +457,7 @@ inline std::vector<SystVariationConfig> GetBackgroundSystematicModels(const TStr
 		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}, {"5th", "5th-order Chebyshev"}, {"linear", "Linear Background"}};
 	}
 	if (tree == "ntKp")  {//Exponential
-		return {{"mass_range", "Mass Range"},{"linear", "Linear Background"}, {"2nd", "2nd-order Chebyshev"}, {"3rd", "3rd-order Chebyshev"}};
+		return {{"mass_range", "Mass Range"},{"linear", "Linear Background"}, {"2nd", "2nd-order Chebyshev"}, /*{"3rd", "3rd-order Chebyshev"}*/};
 	}
 	if (tree == "ntmix_X3872" || tree == "ntmix_PSI2S") {//2nd-order Chebyshev
 		return {{"3rd", "3rd-order Chebyshev"}};
