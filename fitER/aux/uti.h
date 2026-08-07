@@ -450,11 +450,11 @@ struct SystVariationConfig {
 
 inline std::vector<SystVariationConfig> GetBackgroundSystematicModels(const TString& tree)
 {
-	if (tree == "ntphi")  {//3rd-order Chebyshev  
-		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}};
+	if (tree == "ntphi")  {//3rd-order Chebyshev  // Exponential or Linear for ppRef, 2nd order Chebyshev for PbPb
+		return {/*{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"},*/ {"linear", "Linear Background"}, {"exp", "Exponential"}};
 	}
 	if (tree == "ntKstar"){//3rd-order Chebyshev
-		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}};
+		return {{"2nd", "2nd-order Chebyshev"}, {"4th", "4th-order Chebyshev"}, {"5th", "5th-order Chebyshev"}, {"linear", "Linear Background"}};
 	}
 	if (tree == "ntKp")  {//Exponential
 		return {{"mass_range", "Mass Range"},{"linear", "Linear Background"}, {"2nd", "2nd-order Chebyshev"}, {"3rd", "3rd-order Chebyshev"}};
@@ -472,7 +472,7 @@ inline std::vector<SystVariationConfig> GetSignalSystematicModels(const TString&
 		return {{"1gauss", "Gaussian"}, {"3gauss", "Triple Gaussian"},{"fixed", "Fixed mean"}};
 	}
 	if (tree == "ntKstar"){// Double Gaussian
-		return {{"3gauss", "Triple Gaussian"}, {"gauss_cb", "Gaussian + Crystal Ball"}, {"fixed", "Fixed mean"}};
+		return {{"1gauss", "Gaussian"}, {"3gauss", "Triple Gaussian"}, {"gauss_cb", "Gaussian + Crystal Ball"}, {"fixed", "Fixed mean"}};
 	}
 	if (tree == "ntKp")  {// Double Gaussian
 		return {{"3gauss", "Triple Gaussian"}, {"gauss_cb", "Gaussian + Crystal Ball"}, {"fixed", "Fixed mean"}};
