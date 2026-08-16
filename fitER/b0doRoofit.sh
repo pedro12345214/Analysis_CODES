@@ -1,23 +1,23 @@
-DOANALYSISPbPb_FULL_B0=1
-DOANALYSISPbPb_BINNED_PT_B0=0
+DOANALYSISPbPb_FULL_B0=0
+DOANALYSISPbPb_BINNED_PT_B0=1
 DOANALYSISPbPb_BINNED_Y_B0=0
 DOANALYSISPbPb_BINNED_MULT_B0=0
 
 #Data and MC Samples ppRef
-Data_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_xgb_v1/DATA_with_score.root"
-MC_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_xgb_v1/MC_with_score.root"
+#Data_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_xgb_v1/DATA_with_score.root"
+#MC_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pp24_v1_fid1_14v1_xgb_v1/MC_with_score.root"
 #Data and MC Samples PbPb
-#Data_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pb24_v1_fid1_14v1_xgb_v1/DATA_with_score.root"
-#MC_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pb24_v1_fid1_14v1_xgb_v1/MC_with_score.root"
+Data_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pb24_v1_fid1_14v1_xgb_v1/DATA_with_score.root"
+MC_B0="/lstore/cms/hlegoinha/RUN3_Data_MC_sharing/Bmesons/Bd_pb24_v1_fid1_14v1_xgb_v1/MC_with_score.root"
 
 ## CUTS (SELECTION ?) here 
 #CUTs="Bnorm_svpvDistance_2D > 4"
-CUTs="Prediction > 0.92 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" 
-#CUTs="Prediction > 0.93 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" #pb
+#CUTs="Prediction > 0.92 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" 
+CUTs="Prediction > 0.93 && abs(By) < 2.4 && Bpt > 7.5 && Bnorm_svpvDistance_2D > 2 && BtrkPtimb < 0.2 && Bchi2Prob > 0.02" #pb
 
 ##
-syst="ppRef"
-#syst="PbPb"
+#syst="ppRef"
+syst="PbPb"
 
 mkdir -p ROOTfiles/
 

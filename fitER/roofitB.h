@@ -193,6 +193,14 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 			0.150
 		);
 
+		sigma3RT = new RooRealVar(
+			Form("sigma3RT%d_%s", _count, pdf.Data()),
+			"RT third width",
+			0.010,
+			0.001,
+			0.030
+		);
+
 		frac1RT = new RooRealVar(
 			Form("frac1RT%d_%s", _count, pdf.Data()),
 			"RT narrow fraction",
@@ -209,118 +217,44 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 			0.99
 		);
 
-		RooGaussian* g1RT = new RooGaussian(
-			Form("g1RT%d_%s", _count, pdf.Data()),
-			"RT narrow Gaussian",
-			*mass,
-			*meanRT,
-			*sigma1RT
-		);
-
-		RooGaussian* g2RT = new RooGaussian(
-			Form("g2RT%d_%s", _count, pdf.Data()),
-			"RT broad Gaussian",
-			*mass,
-			*meanRT,
-			*sigma2RT
-		);
-
-		RooGaussian* g3RT = new RooGaussian(
-			Form("g3RT%d_%s", _count, pdf.Data()),
-			"RT third Gaussian",
-			*mass,
-			*meanRT,
-			*sigma3RT
-		);
-        if (pdf == "3gauss") {
-			shapeRT = new RooAddPdf(
-				Form("shapeRT%d_%s", _count, pdf.Data()),
-				"RT triple Gaussian",
-				RooArgList(*g1RT, *g2RT, *g3RT),
-				RooArgList(*frac1RT, *frac2RT)
-			);
-		} else if (pdf == "1gauss") {
-			shapeRT = new RooAddPdf(
-				Form("shapeRT%d_%s", _count, pdf.Data()),
-				"RT single Gaussian",
-				RooArgList(*g1RT),
-				RooArgList()
-			);
-		} else {
-            shapeRT = new RooAddPdf(
-                Form("shapeRT%d_%s", _count, pdf.Data()),
-                "RT double Gaussian",	
-                RooArgList(*g1RT, *g2RT),
-                RooArgList(*frac1RT)
-            );
-        }
 		// ========================================================
 		// WT model: Gaussian + bifurcated Gaussian
 		// ========================================================
 
-		meanWT = new RooRealVar(
-			Form("meanWT%d_%s", _count, pdf.Data()),
-			"WT mean",
-			Bd_MASS,
-			Bd_MASS - 0.10,
-			Bd_MASS + 0.10
-		);
+		meanWT = new RooRealVar(Form("meanWT%d_%s", _count, pdf.Data()), "WT mean", Bd_MASS, Bd_MASS - 0.10, Bd_MASS + 0.10);
+		sigmaGWT = new RooRealVar(Form("sigmaGWT%d_%s", _count, pdf.Data()), "WT Gaussian width", 0.020, 0.002, 0.150);
+		sigmaLWT = new RooRealVar(Form("sigmaLWT%d_%s", _count, pdf.Data()), "WT left width", 0.030, 0.002, 0.250);
+		sigmaRWT = new RooRealVar(Form("sigmaRWT%d_%s", _count, pdf.Data()), "WT right width", 0.050, 0.002, 0.250);
+		fracWTG = new RooRealVar(Form("fracWTG%d_%s", _count, pdf.Data()), "WT Gaussian fraction", 0.50, 0.01, 0.99);
+		// Fit the MC widths with scale fixed at one. The data fit releases
+		// scale so these products apply a common resolution correction.
+		scale->setConstant(true);
+		RooProduct* sigma1RT_eff = new RooProduct(Form("scaled_sigma1RT%d_%s", _count, pdf.Data()), "scaled RT narrow width", RooArgList(*scale, *sigma1RT));
+		RooProduct* sigma2RT_eff = new RooProduct(Form("scaled_sigma2RT%d_%s", _count, pdf.Data()), "scaled RT broad width", RooArgList(*scale, *sigma2RT));
+		RooProduct* sigma3RT_eff = new RooProduct(Form("scaled_sigma3RT%d_%s", _count, pdf.Data()), "scaled RT third width", RooArgList(*scale, *sigma3RT));
+		RooProduct* sigmaGWT_eff = new RooProduct(Form("scaled_sigmaGWT%d_%s", _count, pdf.Data()), "scaled WT Gaussian width", RooArgList(*scale, *sigmaGWT));
+		RooProduct* sigmaLWT_eff = new RooProduct(Form("scaled_sigmaLWT%d_%s", _count, pdf.Data()), "scaled WT left width", RooArgList(*scale, *sigmaLWT));
+		RooProduct* sigmaRWT_eff = new RooProduct(Form("scaled_sigmaRWT%d_%s", _count, pdf.Data()), "scaled WT right width", RooArgList(*scale, *sigmaRWT));
 
-		sigmaGWT = new RooRealVar(
-			Form("sigmaGWT%d_%s", _count, pdf.Data()),
-			"WT Gaussian width",
-			0.020,
-			0.002,
-			0.150
-		);
+		RooGaussian* g1RT = new RooGaussian(Form("g1RT%d_%s", _count, pdf.Data()), "RT narrow Gaussian", *mass, *meanRT, *sigma1RT_eff);
+		RooGaussian* g2RT = new RooGaussian(Form("g2RT%d_%s", _count, pdf.Data()), "RT broad Gaussian", *mass, *meanRT, *sigma2RT_eff);
+		RooGaussian* g3RT = new RooGaussian(Form("g3RT%d_%s", _count, pdf.Data()), "RT third Gaussian", *mass, *meanRT, *sigma3RT_eff);
+		RooCBShape* cbRT = new RooCBShape(Form("cbRT%d_%s", _count, pdf.Data()), "RT Crystal Ball", *mass, *meanRT, scaled_sigmacb, alpha, n);
+		RooGaussian* gWT = new RooGaussian(Form("gWT%d_%s", _count, pdf.Data()), "WT Gaussian", *mass, *meanWT, *sigmaGWT_eff);
+		RooBifurGauss* bifWT = new RooBifurGauss(Form("bifWT%d_%s", _count, pdf.Data()), "WT asymmetric Gaussian", *mass, *meanWT, *sigmaLWT_eff, *sigmaRWT_eff);
 
-		sigmaLWT = new RooRealVar(
-			Form("sigmaLWT%d_%s", _count, pdf.Data()),
-			"WT left width",
-			0.030,
-			0.002,
-			0.250
-		);
+		if ((variation == "" && pdf == "") || variation == "background" || (variation == "signal" && pdf == "fixed")) shapeRT = new RooAddPdf(Form("sig_doubleG%d_%s", _count, pdf.Data()), "", RooArgList(*g1RT, *g2RT), RooArgList(*frac1RT));
+		if (variation == "signal" && pdf == "1gauss") shapeRT = new RooAddPdf(Form("sig_Gaussian%d_%s", _count, pdf.Data()), "", RooArgList(*g1RT), RooArgList(), true);
+		if (variation == "signal" && pdf == "3gauss") shapeRT = new RooAddPdf(Form("sig_tripleG%d_%s", _count, pdf.Data()), "", RooArgList(*g1RT, *g2RT, *g3RT), RooArgList(*frac1RT, *frac2RT), true);
+		if (variation == "signal" && pdf == "gauss_cb") shapeRT = new RooAddPdf(Form("sig_gaussCB%d_%s", _count, pdf.Data()), "", RooArgList(*g1RT, *cbRT), RooArgList(*frac1RT));
 
-		sigmaRWT = new RooRealVar(
-			Form("sigmaRWT%d_%s", _count, pdf.Data()),
-			"WT right width",
-			0.050,
-			0.002,
-			0.250
-		);
+		if (!shapeRT) {
+			std::cerr << "ERROR: No Bd RT PDF for variation=" << variation
+				<< ", pdf=" << pdf << std::endl;
+			return nullptr;
+		}
 
-		fracWTG = new RooRealVar(
-			Form("fracWTG%d_%s", _count, pdf.Data()),
-			"WT Gaussian fraction",
-			0.50,
-			0.01,
-			0.99
-		);
-
-		RooGaussian* gWT = new RooGaussian(
-			Form("gWT%d_%s", _count, pdf.Data()),
-			"WT Gaussian",
-			*mass,
-			*meanWT,
-			*sigmaGWT
-		);
-
-		RooBifurGauss* bifWT = new RooBifurGauss(
-			Form("bifWT%d_%s", _count, pdf.Data()),
-			"WT asymmetric Gaussian",
-			*mass,
-			*meanWT,
-			*sigmaLWT,
-			*sigmaRWT
-		);
-
-		shapeWT = new RooAddPdf(
-			Form("shapeWT%d_%s", _count, pdf.Data()),
-			"WT Gaussian plus asymmetric Gaussian",
-			RooArgList(*gWT, *bifWT),
-			RooArgList(*fracWTG)
-		);
+		shapeWT = new RooAddPdf(Form("shapeWT%d_%s", _count, pdf.Data()), "WT Gaussian plus asymmetric Gaussian", RooArgList(*gWT, *bifWT), RooArgList(*fracWTG));
 
 		// ========================================================
 		// First MC fit: determine RT and WT shapes simultaneously
@@ -543,15 +477,6 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 
 		modelMC = totalMC;
 
-		w.import(*nsigMC);
-		w.import(*fWTMC);
-		w.import(*sigma1RT);
-		w.import(*sigma2RT);
-		w.import(*sigma3RT);
-		w.import(*frac1RT);
-		w.import(*frac2RT);
-		w.import(*shapeRT);
-		w.import(*shapeWT);
 	}
 
 // ============================================================
@@ -604,25 +529,20 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
         Offset(true)
     	);
 
-    w.import(*nsigMC);
 	}
 
 
 	//if (tree != "ntKstar") {RooFitResult* fitResultMC = modelMC->fitTo(*dsMC, Save(), Extended(), Range("signal"));}
 	//else {RooFitResult* fitResultMC = modelMC->fitTo(*combData, Save(), Extended(kTRUE), Range("signal"));}
 
+	// nsigMC is not part of the data model, so import it once here. The
+	// complete signal graph is imported recursively with model below.
 	w.import(*nsigMC);
 
 	cMC->Clear();
 	cMC->cd();
-	TPad* pMC1 = new TPad(Form("pMC1_%d", _count), Form("pMC1_%d", _count), 0., 0., 1., 1.);
-	pMC1->SetBorderMode(1);
-	pMC1->SetFrameBorderMode(0);
-	pMC1->SetBorderSize(2);
-	pMC1->SetBottomMargin(0.22);
-	pMC1->SetLeftMargin(0.14);
-	pMC1->SetRightMargin(0.04);
-	pMC1->Draw();
+
+	const int signalColor = (tree == "ntmix_PSI2S") ? kOrange - 2 : kOrange - 3;
 
 	double xMinPlot = mass->getMin();
 	double xMaxPlot = mass->getMax();
@@ -636,84 +556,208 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	else if (tree == "ntKstar") xTtile_decayC = "m_{J/#psi #pi^{+} K^{-}} [GeV/c^{2}]";
 	else if (tree == "ntKp") xTtile_decayC = "m_{J/#psi K^{+}} [GeV/c^{2}]";
 
-	RooPlot* frameMC = mass->frame(Range(xMinPlot, xMaxPlot));
-	frameMC->SetTitle("");
-	frameMC->GetYaxis()->SetTitle(TString::Format("Events / (%g MeV/c^{2})", (mass->getMax() - mass->getMin()) / NBIN * 1000));
-	frameMC->GetYaxis()->SetTitleOffset(2.15);
-	frameMC->GetYaxis()->SetTitleSize(0.035);
-	frameMC->GetXaxis()->SetTitle(xTtile_decayC);
-	frameMC->GetXaxis()->SetTitleSize(0.030);
-	frameMC->GetXaxis()->SetTitleOffset(1.10);
-	frameMC->GetXaxis()->CenterTitle();
-	frameMC->GetYaxis()->SetTitleFont(42);
-	frameMC->GetXaxis()->SetLabelFont(42);
-	frameMC->GetYaxis()->SetLabelFont(42);
-	frameMC->GetXaxis()->SetLabelOffset(0.012);
-	frameMC->GetXaxis()->SetLabelSize(0.031);
-	frameMC->GetXaxis()->SetTickLength(0.035);
-	frameMC->GetYaxis()->SetTitleSize(0.027);
-	frameMC->GetYaxis()->SetLabelSize(0.027);
-	frameMC->SetStats(0);
-
-	pMC1->cd();
-	const int signalColor = (tree == "ntmix_PSI2S") ? kOrange - 2 : kOrange - 3;
-	dsMC->plotOn(frameMC, Name(Form("dsMC%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
 	if (tree == "ntKstar") {
 
-    	totalMC->plotOn(frameMC,Name(Form("sigMC%d_%s", _count, pdf.Data())),Range("signal"),NormRange("signal"),DrawOption("LF"),FillStyle(3002),FillColor(signalColor),LineStyle(7),LineColor(signalColor),LineWidth(1));
-		totalMC->plotOn(frameMC,Name(Form("rtComp%d_%s", _count, pdf.Data())),Components(*shapeRT),Range("signal"),NormRange("signal"),LineColor(kGreen + 2),LineStyle(kDashed),LineWidth(2));
-		totalMC->plotOn(frameMC,Name(Form("wtComp%d_%s", _count, pdf.Data())),Components(*shapeWT),Range("signal"),NormRange("signal"),LineColor(kMagenta + 1),LineStyle(kDashed),LineWidth(2));
-   		totalMC->plotOn(frameMC,Name(Form("modelMCcurve%d_%s", _count, pdf.Data())),DrawOption("L"),LineWidth(0));
-    	totalMC->paramOn(frameMC,Layout(0.18, 0.48, 0.82),Format("NEU", AutoPrecision(2)));
+		meanRT->setConstant(false);
+		meanWT->setConstant(false);
+
+		sigma1RT->setConstant(false);
+		sigma2RT->setConstant(false);
+		sigma3RT->setConstant(false);
+		frac1RT->setConstant(false);
+		frac2RT->setConstant(false);
+
+		sigmaGWT->setConstant(false);
+		sigmaLWT->setConstant(false);
+		sigmaRWT->setConstant(false);
+		fracWTG->setConstant(false);
+
+
+		TPad* pMC_RT = new TPad(Form("pMC_RT_%d", _count), Form("pMC_RT_%d", _count), 0.0, 0.0, 0.5, 1.0);
+		TPad* pMC_WT = new TPad(Form("pMC_WT_%d", _count), Form("pMC_WT_%d", _count), 0.5, 0.0, 1.0, 1.0);
+		pMC_RT->SetBorderMode(1);
+		pMC_RT->SetFrameBorderMode(0);
+		pMC_RT->SetBorderSize(2);
+		pMC_RT->SetBottomMargin(0.18);
+		pMC_RT->SetLeftMargin(0.14);
+		pMC_RT->SetRightMargin(0.04);
+		pMC_RT->Draw();
+		pMC_WT->SetBorderMode(1);
+		pMC_WT->SetFrameBorderMode(0);
+		pMC_WT->SetBorderSize(2);
+		pMC_WT->SetBottomMargin(0.18);
+		pMC_WT->SetLeftMargin(0.08);
+		pMC_WT->SetRightMargin(0.14);
+		pMC_WT->Draw();
+
+		pMC_RT->cd();
+		RooPlot* frameMC_RT = mass->frame(Range(5.10, 5.45));
+		frameMC_RT->SetTitle("");
+		frameMC_RT->GetYaxis()->SetTitle("Events / (10 MeV/c^{2})");
+		frameMC_RT->GetYaxis()->SetTitleOffset(1.6);
+		frameMC_RT->GetYaxis()->SetTitleSize(0.045);
+		frameMC_RT->GetXaxis()->SetTitle(xTtile_decayC);
+		frameMC_RT->GetXaxis()->SetTitleSize(0.035);
+		frameMC_RT->GetXaxis()->SetTitleOffset(1.10);
+		frameMC_RT->GetXaxis()->CenterTitle();
+		frameMC_RT->GetYaxis()->SetTitleFont(42);
+		frameMC_RT->GetXaxis()->SetLabelFont(42);
+		frameMC_RT->GetYaxis()->SetLabelFont(42);
+		frameMC_RT->GetXaxis()->SetLabelSize(0.030);
+		frameMC_RT->GetYaxis()->SetLabelSize(0.030);
+		frameMC_RT->SetStats(0);
+
+		dsMC_RT->plotOn(frameMC_RT, Name(Form("dsMC_RT_%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
+		shapeRT->plotOn(frameMC_RT, Name(Form("rtFit_%d_%s", _count, pdf.Data())), LineColor(kGreen + 2), LineWidth(2));
+		shapeRT->paramOn(frameMC_RT, Layout(0.18, 0.45, 0.80), Format("NEU", AutoPrecision(2)));
+		TPaveText* paramBoxRT = dynamic_cast<TPaveText*>(frameMC_RT->findObject(Form("%s_paramBox", shapeRT->GetName())));
+		if (paramBoxRT) {
+			paramBoxRT->SetTextSize(0.028);
+			paramBoxRT->SetTextFont(42);
+			paramBoxRT->SetFillStyle(0);
+			paramBoxRT->SetBorderSize(0);
+		}
+		frameMC_RT->SetMinimum(0.0);
+		frameMC_RT->SetMaximum(frameMC_RT->GetMaximum() * 1.5);
+		frameMC_RT->Draw();
+		TLatex* mesonNameMC = new TLatex(0.2, 0.88, FitParticleLabel(tree, true));
+		setupLABELS(mesonNameMC, 0.060, true);
+		cMC->RedrawAxis();
+
+		TLatex* rtLabel = new TLatex(0.20, 0.84, "RT-only MC fit");
+		setupLABELS(rtLabel, 0.045, true);
+		TLegend* legRT = new TLegend(0.62, 0.75, 0.90, 0.88, NULL, "brNDC");
+		legRT->SetBorderSize(0);
+		legRT->SetTextSize(0.035);
+		legRT->SetTextFont(42);
+		legRT->SetFillStyle(0);
+		legRT->AddEntry(frameMC_RT->findObject(Form("dsMC_RT_%d_%s", _count, pdf.Data())), "RT MC", "lp");
+		legRT->AddEntry(frameMC_RT->findObject(Form("rtFit_%d_%s", _count, pdf.Data())), "RT fit", "l");
+		legRT->Draw();
+
+		pMC_WT->cd();
+		RooPlot* frameMC_WT = mass->frame(Range(5.10, 5.45));
+		frameMC_WT->SetTitle("");
+		frameMC_WT->GetYaxis()->SetTitle("Events / (10 MeV/c^{2})");
+		frameMC_WT->GetYaxis()->SetTitleOffset(1.6);
+		frameMC_WT->GetYaxis()->SetTitleSize(0.045);
+		frameMC_WT->GetXaxis()->SetTitle(xTtile_decayC);
+		frameMC_WT->GetXaxis()->SetTitleSize(0.035);
+		frameMC_WT->GetXaxis()->SetTitleOffset(1.10);
+		frameMC_WT->GetXaxis()->CenterTitle();
+		frameMC_WT->GetYaxis()->SetTitleFont(42);
+		frameMC_WT->GetXaxis()->SetLabelFont(42);
+		frameMC_WT->GetYaxis()->SetLabelFont(42);
+		frameMC_WT->GetXaxis()->SetLabelSize(0.030);
+		frameMC_WT->GetYaxis()->SetLabelSize(0.030);
+		frameMC_WT->SetStats(0);
+		dsMC_WT->plotOn(frameMC_WT, Name(Form("dsMC_WT_%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
+		shapeWT->plotOn(frameMC_WT, Name(Form("wtFit_%d_%s", _count, pdf.Data())), LineColor(kMagenta + 1), LineWidth(2));
+		shapeWT->paramOn(frameMC_WT, Layout(0.18, 0.45, 0.80), Format("NEU", AutoPrecision(2)));
+		TPaveText* paramBoxWT = dynamic_cast<TPaveText*>(frameMC_WT->findObject(Form("%s_paramBox", shapeWT->GetName())));
+		if (paramBoxWT) {
+			paramBoxWT->SetTextSize(0.028);
+			paramBoxWT->SetTextFont(42);
+			paramBoxWT->SetFillStyle(0);
+			paramBoxWT->SetBorderSize(0);
+		}
+		frameMC_WT->SetMinimum(0.0);
+		frameMC_WT->SetMaximum(frameMC_RT->GetMaximum());
+		frameMC_WT->Draw();
+		setupLABELS(mesonNameMC, 0.060, true);
+		cMC->RedrawAxis();
+		TLatex* wtLabel = new TLatex(0.20, 0.84, "WT-only MC fit");
+		setupLABELS(wtLabel, 0.045, true);
+		TLegend* legWT = new TLegend(0.62, 0.75, 0.90, 0.88, NULL, "brNDC");
+		legWT->SetBorderSize(0);
+		legWT->SetTextSize(0.035);
+		legWT->SetTextFont(42);
+		legWT->SetFillStyle(0);
+		legWT->AddEntry(frameMC_WT->findObject(Form("dsMC_WT_%d_%s", _count, pdf.Data())), "WT MC", "lp");
+		legWT->AddEntry(frameMC_WT->findObject(Form("wtFit_%d_%s", _count, pdf.Data())), "WT fit", "l");
+		legWT->Draw();
+		DrawCmsHeader(cMC, system);
+	    cMC->Update();
+
+		meanRT->setConstant(true);
+		meanWT->setConstant(true);
+
+		sigma1RT->setConstant(true);
+		sigma2RT->setConstant(true);
+		sigma3RT->setConstant(true);
+		frac1RT->setConstant(true);
+		frac2RT->setConstant(true);
+
+		sigmaGWT->setConstant(true);
+		sigmaLWT->setConstant(true);
+		sigmaRWT->setConstant(true);
+		fracWTG->setConstant(true);
+
 	} else {
+		TPad* pMC1 = new TPad(Form("pMC1_%d", _count), Form("pMC1_%d", _count), 0., 0., 1., 1.);
+		pMC1->SetBorderMode(1);
+		pMC1->SetFrameBorderMode(0);
+		pMC1->SetBorderSize(2);
+		pMC1->SetBottomMargin(0.22);
+		pMC1->SetLeftMargin(0.14);
+		pMC1->SetRightMargin(0.04);
+		pMC1->Draw();
+		pMC1->cd();
+
+		RooPlot* frameMC = mass->frame(Range(xMinPlot, xMaxPlot));
+		frameMC->SetTitle("");
+		frameMC->GetYaxis()->SetTitle(TString::Format("Events / (%g MeV/c^{2})", (mass->getMax() - mass->getMin()) / NBIN * 1000));
+		frameMC->GetYaxis()->SetTitleOffset(2.15);
+		frameMC->GetYaxis()->SetTitleSize(0.035);
+		frameMC->GetXaxis()->SetTitle(xTtile_decayC);
+		frameMC->GetXaxis()->SetTitleSize(0.030);
+		frameMC->GetXaxis()->SetTitleOffset(1.10);
+		frameMC->GetXaxis()->CenterTitle();
+		frameMC->GetYaxis()->SetTitleFont(42);
+		frameMC->GetXaxis()->SetLabelFont(42);
+		frameMC->GetYaxis()->SetLabelFont(42);
+		frameMC->GetXaxis()->SetLabelOffset(0.012);
+		frameMC->GetXaxis()->SetLabelSize(0.031);
+		frameMC->GetXaxis()->SetTickLength(0.035);
+		frameMC->GetYaxis()->SetTitleSize(0.027);
+		frameMC->GetYaxis()->SetLabelSize(0.027);
+		frameMC->SetStats(0);
+
+		dsMC->plotOn(frameMC, Name(Form("dsMC%d_%s", _count, pdf.Data())), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), LineColor(1), LineWidth(1));
 		modelMC->plotOn(frameMC, Name(Form("sigMC%d_%s", _count, pdf.Data())), Range("signal"), NormRange("signal"), Normalization(nsigMC->getVal(), RooAbsReal::NumEvent), DrawOption("LF"), FillStyle(3002), FillColor(signalColor), LineStyle(7), LineColor(signalColor), LineWidth(1));
 		modelMC->plotOn(frameMC, Name(Form("modelMCcurve%d_%s", _count, pdf.Data())), DrawOption("L"), LineWidth(0));
 		modelMC->paramOn(frameMC, Layout(0.18, 0.48, 0.82), Format("NEU", AutoPrecision(2)));
+
+		TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", modelMC->GetName())));
+		if (paramBoxMC) {
+			paramBoxMC->SetTextSize(0.022);
+			paramBoxMC->SetTextFont(42);
+			paramBoxMC->SetFillStyle(0);
+			paramBoxMC->SetBorderSize(0);
+			paramBoxMC->SetY1NDC(0.72);
+			paramBoxMC->SetY2NDC(0.82);
+		}
+
+		frameMC->getAttFill()->SetFillStyle(0);
+		frameMC->getAttLine()->SetLineWidth(0);
+		frameMC->SetMinimum(0.0);
+		frameMC->SetMaximum(frameMC->GetMaximum() * 1.35);
+		frameMC->Draw();
+		TLatex* mesonNameMC = new TLatex(0.2, 0.88, FitParticleLabel(tree, true));
+		setupLABELS(mesonNameMC, 0.060, true);
+		cMC->RedrawAxis();
+
+		TLegend* legMC = new TLegend(0.6, 0.78, 0.92, 0.90, NULL, "brNDC");
+		legMC->SetBorderSize(0);
+		legMC->SetTextSize(0.035);
+		legMC->SetTextFont(42);
+		legMC->SetFillStyle(0);
+		legMC->AddEntry(frameMC->findObject(Form("dsMC%d_%s", _count, pdf.Data())), "Signal MC", "lp");
+		legMC->AddEntry(frameMC->findObject(Form("sigMC%d_%s", _count, pdf.Data())), "Signal PDF", "f");
+		legMC->Draw();
+		DrawCmsHeader(cMC, system);
+	    cMC->Update();
 	}
-    /*TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", modelMC->GetName())));*/
-	TString mcParamModelName = (tree == "ntKstar")
-        ? totalMC->GetName()
-        : modelMC->GetName();
-
-	TPaveText* paramBoxMC =dynamic_cast<TPaveText*>(frameMC->findObject(Form("%s_paramBox", mcParamModelName.Data())));
-
-    if (paramBoxMC) {
-      paramBoxMC->SetTextSize(0.022);
-      paramBoxMC->SetTextFont(42);
-      paramBoxMC->SetFillStyle(0);
-      paramBoxMC->SetBorderSize(0);
-    
-	  // Reduce vertical gaps: make the box shorter
-      paramBoxMC->SetY1NDC(0.72);
-      paramBoxMC->SetY2NDC(0.82);
-
-    }
-
-	frameMC->getAttFill()->SetFillStyle(0);
-	frameMC->getAttLine()->SetLineWidth(0);
-	frameMC->SetMinimum(0.0);
-    frameMC->SetMaximum(frameMC->GetMaximum() * 1.35);
-	frameMC->Draw();
-	TLatex* mesonNameMC = new TLatex(0.2, 0.88, FitParticleLabel(tree, true));
-	setupLABELS(mesonNameMC, 0.060, true);
-	cMC->RedrawAxis();
-
-	TLegend* legMC = new TLegend(0.6, 0.78, 0.92, 0.90, NULL, "brNDC");
-	legMC->SetBorderSize(0);
-	legMC->SetTextSize(0.035);
-	legMC->SetTextFont(42);
-	legMC->SetFillStyle(0);
-	legMC->AddEntry(frameMC->findObject(Form("dsMC%d_%s", _count, pdf.Data())), "Signal MC", "lp");
-	legMC->AddEntry(frameMC->findObject(Form("sigMC%d_%s", _count, pdf.Data())), "Signal PDF", "f");
-
-	if (tree == "ntKstar") {
-
-		legMC->AddEntry(frameMC->findObject(Form("rtComp%d_%s", _count, pdf.Data())), "RT component", "l");
-		legMC->AddEntry(frameMC->findObject(Form("wtComp%d_%s", _count, pdf.Data())),"WT component", "l");
-
-	}
-
-	legMC->Draw();
 
 	double n_signal_initial = ds->sumEntries(TString::Format("abs(Bmass-%g)<%g", init_mean, (tree == "ntmix_X3872" || tree == "ntmix_PSI2S") ? 0.005 : 0.05));
 	const double nsigInit = std::max(0.0, n_signal_initial * 0.4);
@@ -749,6 +793,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.02, 0.005, 0.05);
 	RooRealVar* m_nonprompt_shift = new RooRealVar(Form("m_nonprompt_shift%d_%s", _count, ""), "m_nonprompt_shift", 5.13, 5.12, 5.14);
 
+
 	// Fixing the parameters of the background PDFs based on the results of the fit to the inclusive data sample
     //RooRealVar* m_nonprompt_scale = new RooRealVar(Form("m_nonprompt_scale%d_%s", _count, ""), "m_nonprompt_scale", 0.0464);
 	//m_nonprompt_scale->setConstant(true);
@@ -771,15 +816,15 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		if (variation == "background" && pdf == "5th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_5th), RooArgList(nsig, nbkg));
 	}
 	if (tree == "ntKstar") {
-		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
+		if ((variation == "" && pdf == "") || variation == "signal") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "2nd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_2nd), RooArgList(nsig, nbkg));
-		if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
+		//if (variation == "background" && pdf == "3rd") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_3rd), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "exp") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg), RooArgList(nsig, nbkg));
 		if (variation == "background" && pdf == "linear") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_lin), RooArgList(nsig, nbkg));
 		if (variation == "signal" && pdf == "1gauss") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
 		if (variation == "signal" && pdf == "3gauss") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
-		//if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
-		//if (variation == "background" && pdf == "5th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_5th), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "4th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_4th), RooArgList(nsig, nbkg));
+		if (variation == "background" && pdf == "5th") model = new RooAddPdf(Form("model%d_%s", _count, pdf.Data()), "", RooArgList(*sig, bkg_5th), RooArgList(nsig, nbkg));
 
 	}
 	if (tree == "ntKp") {
@@ -812,8 +857,19 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 
 	
 
+	if (!model) {
+		std::cerr << "ERROR: No data-fit model for tree=" << tree
+			<< ", variation=" << variation << ", pdf=" << pdf << std::endl;
+		return nullptr;
+	}
+
 	TString fitRange = (pdf == "mass_range") ? "m_rangeB" : "all";
 	RooFitResult* fitResult = model->fitTo(*ds, Save(), Extended(kTRUE), Range(fitRange));
+	if (!fitResult) {
+		std::cerr << "ERROR: Data fit returned no result for tree=" << tree
+			<< ", variation=" << variation << ", pdf=" << pdf << std::endl;
+		return nullptr;
+	}
 	fitResult->Print("v");
 	w.import(*model);
 
@@ -851,6 +907,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	p2->SetFrameBorderMode(0);
 	p2->SetTicks(1, 1);
 	p2->Draw();
+	c->cd();
 
 	p1->cd();
 	ds->plotOn(frame, Name(Form("ds_cut%d", _count)), Binning(NBIN), MarkerSize(0.5), MarkerStyle(8), MarkerColor(1), LineColor(1), LineWidth(1));
@@ -866,7 +923,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	if (!std::isfinite(chi2Ndf) || chi2Ndf < 0) chi2Ndf = -1.0;
 	RooRealVar chi2Var(Form("chi2_data_norm%d_%s", _count, pdf.Data()), "", chi2Ndf);
 	w.import(chi2Var);
-	model->paramOn(frame, Layout(0.18, 0.48, 0.80), Format("NEU", AutoPrecision(2)));
+	model->paramOn(frame, Layout(0.18, 0.48, 0.84), Format("NEU", AutoPrecision(2)));
 
     TPaveText* paramBox =
     dynamic_cast<TPaveText*>(frame->findObject(Form("%s_paramBox", model->GetName())));
@@ -900,7 +957,7 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 	frame->getAttFill()->SetFillStyle(0);
 	frame->getAttLine()->SetLineWidth(0);
 	frame->SetMinimum(0.0);
-	frame->SetMaximum(frame->GetMaximum() * 1.45);
+	frame->SetMaximum(frame->GetMaximum() * 1.60);
 	frame->Draw();
 
 	TLegend* leg = new TLegend(0.67, 0.60, 0.91, 0.90, NULL, "brNDC");
@@ -927,6 +984,9 @@ RooFitResult *fit(TString system, TString variation, TString pdf, TString tree, 
 		leg->AddEntry(frame->findObject(Form("wtComp%d_%s", _count, pdf.Data())), "WT component", "l");
 	}
 	leg->Draw();
+	DrawCmsHeader(cMC, system);
+	c->Update();
+
 
 	p2->cd();
 	RooHist* pull_hist = frame->pullHist(Form("ds_cut%d", _count), Form("model%d_%s", _count, pdf.Data()));

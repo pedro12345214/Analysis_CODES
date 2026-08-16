@@ -69,7 +69,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 	int fitMassBins = nbinsmasshisto;
 	if (TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") fitMassBins = nbinsmasshisto/2;
 	mass = new RooRealVar("Bmass", "Bmass", minhisto, maxhisto);
-	mass->setRange("m_rangeB", 5.2 , 5.8);        //set a range to be used if pdf = mass_rangeB
+	mass->setRange("m_rangeB", 5.18 , 5.8);        //set a range to be used if pdf = mass_rangeB
 	mass->setRange("all", minhisto, maxhisto);
 	RooRealVar* pt    = new RooRealVar("Bpt","Bpt",0,300);
 	RooRealVar* y     = new RooRealVar("By","By",-2.4, 2.4);
@@ -166,6 +166,11 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
 		cout << "Starting the fiting function for " << TREE.Data() << " " << VAR.Data() << " ["<< _varBINS[i] << ", " << _varBINS[i+1] << "]" << endl;
 		RooFitResult* f_results = fit(SYSTEM, "", "", TREE, c, cMC, ith_DATA_bin, ith_MC_bin, mass, _varBINS[i], _varBINS[i+1], *ws, VAR.Data(), fitMassBins);
+		if (!f_results) {
+			cerr << "ERROR: Nominal fit failed for " << TREE << " " << VAR
+				<< " [" << _varBINS[i] << ", " << _varBINS[i+1] << "]" << endl;
+			return;
+		}
 		ws->saveSnapshot(Form("nominalPars_bin%d", _count), f_results->floatParsFinal(), true);
 
 		////////// FITFITFITFITFITFITFITFITFITFITFITFIT //////////
@@ -173,7 +178,11 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
 		// Get Fit results // Get Fit results // Get Fit results // Get Fit results // Get Fit results // Get Fit results // Get Fit results // Get Fit results // Get Fit results 
 		// Yield
-			RooRealVar* fitYield = static_cast<RooRealVar*>(f_results->floatParsFinal().at(f_results->floatParsFinal().index(Form("nsig%d_%s",_count,""))));
+			RooRealVar* fitYield = dynamic_cast<RooRealVar*>(f_results->floatParsFinal().find(Form("nsig%d_%s",_count,"")));
+			if (!fitYield) {
+				cerr << "ERROR: Nominal fit result has no nsig parameter for bin " << _count << endl;
+				return;
+			}
 
 			yield_vec[i]=fitYield->getVal();
 			yield_Stat_unc[i] = fitYield->getError();	
@@ -187,7 +196,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
     	RooRealVar* sigma2RTfit = ws->var(Form("sigma2RT%d_%s", _count, ""));
 
-    	RooRealVar* fracRTfit = ws->var(Form("fracRT%d_%s", _count, ""));
+    	RooRealVar* fracRTfit = ws->var(Form("frac1RT%d_%s", _count, ""));
 
     	if (
         sigma1RTfit &&
@@ -244,7 +253,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 
 		////////////////////////////////////////////////////////// LABELS IN PLOTS
 		// print fit meson NAME
-		TLatex* mesonName = new TLatex(0.2, 0.85, FitParticleLabel(TREE, true));
+		TLatex* mesonName = new TLatex(0.2, 0.89, FitParticleLabel(TREE, true));
 		setupLABELS(mesonName, 0.060, true);
 
 		// print fit xi2
@@ -309,7 +318,12 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			{
 				RooFitResult* f_back = fit(SYSTEM, "background", background[j].code.c_str(), TREE, c, cMC, data, mc, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
 				RooRealVar* chi2_data_norm_back = ws->var(Form("chi2_data_norm%d_%s", _count, background[j].code.c_str()));
-				RooRealVar* fitYield_back = static_cast<RooRealVar*>(f_back->floatParsFinal().at(f_back->floatParsFinal().index(Form("nsig%d_%s",_count,background[j].code.c_str()))));
+				RooRealVar* fitYield_back = f_back ? dynamic_cast<RooRealVar*>(f_back->floatParsFinal().find(Form("nsig%d_%s",_count,background[j].code.c_str()))) : nullptr;
+				if (!fitYield_back) {
+					cerr << "ERROR: Background systematic fit failed for " << TREE << ", bin " << _count
+						<< ", model=" << background[j].code << endl;
+					return;
+				}
 				chi2_vec_back[j][i] = (chi2_data_norm_back ? chi2_data_norm_back->getVal() : -1.0);
 				chi_square->SetText(0.68,0.55,Form("#chi^{2}/ndf = %.2f ",chi2_vec_back[j][i]));
 				chi_square->Draw();
@@ -320,6 +334,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 				variationLabel->SetTitle(Form("(%s)", background[j].label.c_str()));
 				variationLabel->Draw();
 				mesonName->Draw();
+				DrawCmsHeader(c, SYSTEM);
 				c->Update();
 
 				if(VAR == "By"){
@@ -344,7 +359,12 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			{
 				RooFitResult* f_signal = fit(SYSTEM, "signal", signal[j].code.c_str(), TREE, c, cMC, data, mc, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
 				RooRealVar* chi2_data_norm_sig = ws->var(Form("chi2_data_norm%d_%s", _count, signal[j].code.c_str()));
-				RooRealVar* fitYield_signal = static_cast<RooRealVar*>(f_signal->floatParsFinal().at(f_signal->floatParsFinal().index(Form("nsig%d_%s",_count,signal[j].code.c_str()))));
+				RooRealVar* fitYield_signal = f_signal ? dynamic_cast<RooRealVar*>(f_signal->floatParsFinal().find(Form("nsig%d_%s",_count,signal[j].code.c_str()))) : nullptr;
+				if (!fitYield_signal) {
+					cerr << "ERROR: Signal systematic fit failed for " << TREE << ", bin " << _count
+						<< ", model=" << signal[j].code << endl;
+					return;
+				}
 					chi2_vec_sig[j][i] = (chi2_data_norm_sig ? chi2_data_norm_sig->getVal() : -1.0);
 					chi_square->SetText(0.68, 0.55, Form("#chi^{2}/ndf = %.2f ", chi2_vec_sig[j][i]));
 					chi_square->Draw();
@@ -400,7 +420,12 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			{
 				RooFitResult* f_back = fit(SYSTEM, "background", background[j].code.c_str(), TREE, c, cMC, ith_DATA_bin, ith_MC_bin, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
 				RooRealVar* chi2_data_norm_back = ws->var(Form("chi2_data_norm%d_%s", _count, background[j].code.c_str()));
-				RooRealVar* fitYield_back = static_cast<RooRealVar*>(f_back->floatParsFinal().at(f_back->floatParsFinal().index(Form("nsig%d_%s",_count,background[j].code.c_str()))));
+				RooRealVar* fitYield_back = f_back ? dynamic_cast<RooRealVar*>(f_back->floatParsFinal().find(Form("nsig%d_%s",_count,background[j].code.c_str()))) : nullptr;
+				if (!fitYield_back) {
+					cerr << "ERROR: Background systematic fit failed for " << TREE << ", bin " << _count
+						<< ", model=" << background[j].code << endl;
+					return;
+				}
 				chi2_vec_back[j][i] = (chi2_data_norm_back ? chi2_data_norm_back->getVal() : -1.0);
 				chi_square->SetText(0.68,0.55,Form("#chi^{2}/ndf = %.2f ",chi2_vec_back[j][i]));
 				chi_square->Draw();
@@ -411,6 +436,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 				variationLabel->SetTitle(Form("(%s)", background[j].label.c_str()));
 				variationLabel->Draw();
 				mesonName->Draw();
+				DrawCmsHeader(c, SYSTEM);
 				c->Update();
 
 				if(VAR == "By"){
@@ -435,7 +461,12 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			{
 				RooFitResult* f_signal = fit(SYSTEM, "signal", signal[j].code.c_str(), TREE, c, cMC, ith_DATA_bin, ith_MC_bin, mass, _varBINS[i], _varBINS[i+1], *ws, VAR, fitMassBins);
 				RooRealVar* chi2_data_norm_sig = ws->var(Form("chi2_data_norm%d_%s", _count, signal[j].code.c_str()));
-				RooRealVar* fitYield_signal = static_cast<RooRealVar*>(f_signal->floatParsFinal().at(f_signal->floatParsFinal().index(Form("nsig%d_%s",_count,signal[j].code.c_str()))));
+				RooRealVar* fitYield_signal = f_signal ? dynamic_cast<RooRealVar*>(f_signal->floatParsFinal().find(Form("nsig%d_%s",_count,signal[j].code.c_str()))) : nullptr;
+				if (!fitYield_signal) {
+					cerr << "ERROR: Signal systematic fit failed for " << TREE << ", bin " << _count
+						<< ", model=" << signal[j].code << endl;
+					return;
+				}
 					chi2_vec_sig[j][i] = (chi2_data_norm_sig ? chi2_data_norm_sig->getVal() : -1.0);
 					chi_square->SetText(0.68, 0.55, Form("#chi^{2}/ndf = %.2f ", chi2_vec_sig[j][i]));
 					chi_square->Draw();
@@ -446,6 +477,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 					variationLabel->SetTitle(Form("(%s)", signal[j].label.c_str()));
 					variationLabel->Draw();
 					mesonName->Draw();
+					DrawCmsHeader(c, SYSTEM);
 					c->Update();
 				
 				if (signal[j].code != "fixed") {
@@ -544,16 +576,37 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		double low_high_b[_nBins];
 		Double_t x[_nBins];
 		for (int i=0;i<_nBins;i++){
-			x[i] = (_varBINS[i]+_varBINS[i+1])/2;
-			low_high_b[i] = _varBINS[i+1] - x[i];
+			x[i] = i + 0.5;
+			low_high_b[i] = 0.5;
 		}
+
+		auto SetUncertaintyBinning = [&](TMultiGraph* graph) {
+			TH1F* axisHistogram = graph->GetHistogram();
+			axisHistogram->SetBins(_nBins, 0., static_cast<double>(_nBins));
+			axisHistogram->SetStats(0);
+			axisHistogram->GetXaxis()->SetLabelSize(0.032);
+			axisHistogram->GetXaxis()->SetLabelOffset(0.012);
+			axisHistogram->GetXaxis()->SetTitleOffset(1.35);
+			axisHistogram->GetXaxis()->SetTickLength(0.);
+			axisHistogram->GetXaxis()->CenterLabels(true);
+			for (int i=0;i<_nBins;i++){
+				axisHistogram->GetXaxis()->SetBinLabel(i+1, Form("%g,%g", _varBINS[i], _varBINS[i+1]));
+			}
+		};
+
+		auto DrawSystematicsLabels = [&](TCanvas* canvas) {
+			canvas->cd();
+			TLatex* mesonName = new TLatex(0.2, 0.85, FitParticleLabel(TREE, true));
+			setupLABELS(mesonName, 0.060, true);
+			DrawCmsHeader(canvas, SYSTEM);
+		};
 
 		TGraph *binning= new TGraphAsymmErrors (_nBins,x,zero,low_high_b,low_high_b,zero,zero);
 		binning->SetMarkerColorAlpha(kBlack, 0);
-		binning->SetLineWidth(6);
+		binning->SetLineWidth(0);
 
 		TMultiGraph* m_back_sig= new TMultiGraph();
-		TLegend *legsigback = new TLegend(0.75,0.71,0.89,0.89,NULL,"brNDC");
+		TLegend *legsigback = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 		legsigback->SetBorderSize(0);
 		legsigback->SetTextSize(0.035);
 		legsigback->SetTextFont(42);
@@ -561,7 +614,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		m_back_sig->Add(binning);
 
 		TCanvas* c_back= new TCanvas("c_back","",700,700);
-		TLegend *legback = new TLegend(0.8,0.75,0.89,0.89,NULL,"brNDC");
+		c_back->SetBottomMargin(0.16);
+		TLegend *legback = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 		legback->SetBorderSize(0);
 		legback->SetTextSize(0.035);
 		legback->SetTextFont(42);
@@ -587,28 +641,30 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		}
 		if (y_max_back <= 0.) y_max_back = 1.;
 		m_back->Add(binning);
+		SetUncertaintyBinning(m_back);
 		m_back->GetXaxis()->SetTitle("p_{T}");
 		m_back->GetYaxis()->SetTitle("Systematic Uncertainty(%)");
 		m_back->GetYaxis()->SetRangeUser(0, y_max_back*1.5);
 		m_back->Draw("AE1");
 		if(VAR == "By"){
 			m_back->GetXaxis()->SetTitle("Rapidity (y)");
-			m_back->GetXaxis()->SetLimits(0,2.4);
 		}
 		else if(VAR == "Bpt"){
 			m_back->GetXaxis()->SetTitle("Transverse Momentum (p_{T})");
-			if (TREE != "ntmix"){ m_back->GetXaxis()->SetLimits(0,65); }
 		}
 		else if(VAR == "nSelectedChargedTracks"){
 			m_back->GetXaxis()->SetTitle("Multiplicity (Mult)");
-			m_back->GetXaxis()->SetLimits(0,110);
 		}
 		legback->Draw();
+		DrawSystematicsLabels(c_back);
+		c_back->Update();
+
 		c_back->SaveAs(Form("%s/background_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 		c_back->SaveAs(Form("%s/png/background_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 		
 		TCanvas* c_sig= new TCanvas("c_sig","",700,700);
-		TLegend *legsig = new TLegend(0.75,0.8,0.89,0.89,NULL,"brNDC");
+		c_sig->SetBottomMargin(0.16);
+		TLegend *legsig = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 		legsig->SetBorderSize(0);
 		legsig->SetTextSize(0.035);
 		legsig->SetTextFont(42);
@@ -634,50 +690,54 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		}
 		if (y_max_sig <= 0.) y_max_sig = 1.;
 		m_sig->Add(binning);
+		SetUncertaintyBinning(m_sig);
 		m_sig->GetXaxis()->SetTitle("p_{T}");
 		m_sig->GetYaxis()->SetTitle("Systematic Uncertainty(%)");
 		m_sig->GetYaxis()->SetRangeUser(0, y_max_sig*1.5);
 		m_sig->Draw("AE1");
 		if(VAR == "By"){
 			m_sig->GetXaxis()->SetTitle("Rapidity (y)");
-			m_sig->GetXaxis()->SetLimits(0,2.4);
 		}
 		else if(VAR == "Bpt"){
 			m_sig->GetXaxis()->SetTitle("Transverse Momentum (p_{T})");
-			m_sig->GetXaxis()->SetLimits(0,80);
 		}
 		else if(VAR == "nSelectedChargedTracks"){
 			m_sig->GetXaxis()->SetTitle("Multiplicity (Mult)");
-			m_sig->GetXaxis()->SetLimits(0,110);
 		}
 		legsig->Draw();
+		DrawSystematicsLabels(c_sig);
+		c_sig->Update();
+
 		c_sig->SaveAs(Form("%s/signal_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 		c_sig->SaveAs(Form("%s/png/signal_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
 		TCanvas *c_sig_back= new TCanvas("c_sig_back","",700,700);
+		c_sig_back->SetBottomMargin(0.16);
 		double y_max_combined = (y_max_back > y_max_sig) ? y_max_back : y_max_sig;
 		if (y_max_combined <= 0.) y_max_combined = 1.;
+		SetUncertaintyBinning(m_back_sig);
 		m_back_sig->GetYaxis()->SetRangeUser(0, y_max_combined*1.5);
 		if(VAR == "By"){
 			m_back_sig->GetXaxis()->SetTitle("Rapidity (y)");
-			m_back_sig->GetXaxis()->SetLimits(0,2.4);
 		}
 		else if(VAR == "Bpt"){
 			m_back_sig->GetXaxis()->SetTitle("Transverse Momentum (p_{T})");
-			if (TREE != "ntmix"){ m_back_sig->GetXaxis()->SetLimits(0,65); }
 		}
 		else if(VAR == "nSelectedChargedTracks"){
 			m_back_sig->GetXaxis()->SetTitle("Multiplicity (Mult)");
-			m_back_sig->GetXaxis()->SetLimits(0,110);
 		}
 		m_back_sig->GetYaxis()->SetTitle("Systematic Uncertainty(%)");
 		m_back_sig->Draw("AE1");
 		legsigback->Draw();
+		DrawSystematicsLabels(c_sig_back);
+		c_sig_back->Update();
+
 		c_sig_back->SaveAs(Form("%s/background_signal_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 		c_sig_back->SaveAs(Form("%s/png/background_signal_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
 		TCanvas* c_gen= new TCanvas("c_gen","",700,700);
-		TLegend *legen = new TLegend(0.8,0.77,0.89,0.89,NULL,"brNDC");
+		c_gen->SetBottomMargin(0.16);
+		TLegend *legen = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 		legen->SetBorderSize(0);
 		legen->SetTextSize(0.035);
 		legen->SetTextFont(42);
@@ -712,23 +772,24 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		m_gen->Add(g_gen,"P");
 		legen->AddEntry(g_gen,"Statistical","p");
 		if (y_max_gen <= 0.) y_max_gen = 1.;
+		SetUncertaintyBinning(m_gen);
 		m_gen->GetXaxis()->SetTitle("p_{T}");
 		m_gen->GetYaxis()->SetTitle("Total Uncertainty(%)");
 		m_gen->GetYaxis()->SetRangeUser(0, y_max_gen*1.5);
 		m_gen->Draw("AE1");
 		if(VAR == "By"){
 			m_gen->GetXaxis()->SetTitle("Rapidity (y)");
-			m_gen->GetXaxis()->SetLimits(0,2.4);
 		}
 		else if(VAR == "Bpt"){
 			m_gen->GetXaxis()->SetTitle("Transverse Momentum (p_{T})");
-			m_gen->GetXaxis()->SetLimits(0,80);
 		}
 		else if(VAR == "nSelectedChargedTracks"){
 			m_gen->GetXaxis()->SetTitle("Multiplicity (Mult)");
-			m_gen->GetXaxis()->SetLimits(0,110);
 		}
 		legen->Draw();
+		DrawSystematicsLabels(c_gen);
+		c_gen->Update();
+
 		c_gen->SaveAs(Form("%s/general_systematics_plot_%s_%s.pdf", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 		c_gen->SaveAs(Form("%s/png/general_systematics_plot_%s_%s.png", GRAPH_DIR.Data(), TREE.Data(), VAR.Data()));
 
@@ -753,7 +814,7 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 		//Differential plot part
 		TCanvas c_diff;
 		TMultiGraph* mg = new TMultiGraph();
-		TLegend *leg_d = new TLegend(0.7,0.7,0.9,0.9);
+		TLegend *leg_d = new TLegend(0.5,0.75,0.89,0.89);
 		TGraphAsymmErrors* gr_staterr = new TGraphAsymmErrors(_nBins,var_mean_av,yield_vec,hori_av_low,hori_av_high,yield_Stat_unc,yield_Stat_unc);
 		gr_staterr->SetLineColor(1);
 		gr_staterr->SetMarkerColor(1);
@@ -872,8 +933,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			//chi2 plot part (sigsum) starts
 			TCanvas c_chi2_sigsum;
 			TMultiGraph* mg_chi2_sigsum = new TMultiGraph();
-			TLegend *leg_chi2_sigsum = new TLegend(0.68,0.78,0.92,0.90,NULL,"brNDC"); 
-			if(TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") leg_chi2_sigsum = new TLegend(0.68,0.72,0.92,0.90,NULL,"brNDC");
+			TLegend *leg_chi2_sigsum = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC"); 
+			if(TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") leg_chi2_sigsum = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 			double chi2_max_sigsum = 0;
 
 			for(int j=0; j<static_cast<int>(signal.size()); j++){
@@ -913,8 +974,8 @@ void roofitB(TString TREE = "ntphi", int FULL = 0, TString INPUTDATA = "", TStri
 			//chi2 plot part (backsum) starts
 			TCanvas c_chi2_backsum;
 			TMultiGraph* mg_chi2_backsum = new TMultiGraph();
-			TLegend *leg_chi2_backsum = new TLegend(0.68,0.78,0.92,0.90,NULL,"brNDC"); 
-			if(TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") leg_chi2_backsum = new TLegend(0.68,0.72,0.92,0.90,NULL,"brNDC");
+			TLegend *leg_chi2_backsum = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC"); 
+			if(TREE == "ntmix_X3872" || TREE == "ntmix_PSI2S") leg_chi2_backsum = new TLegend(0.5,0.75,0.89,0.89,NULL,"brNDC");
 			double chi2_max_backsum = 0;
 
 			for(int j=0; j<static_cast<int>(background.size()); j++){
